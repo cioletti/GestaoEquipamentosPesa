@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Associar Segmentos" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="868" height="504">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ComponenteCodeBean;
+			import bean.SegmentoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var segPai:SegmentoBean;
+			public function init(urlLogin:String, segPai:SegmentoBean):void{
+				this.segPai = segPai;
+				this.urlLogin = urlLogin;
+				serviceController.findAllSegmentoDesassociados(segPai.idCheckin, segPai.id);
+				serviceController.findAllSegmentoAssociados(segPai.id);
+			}	
+			
+			
+			
+			private function onResultAssocicarSegmento(event:ResultEvent):void{
+				if(event.result == true){
+					ArrayCollection(segDesassociadoGrid.dataProvider).removeItemAt(segDesassociadoGrid.selectedIndex);
+					
+					serviceController.findAllSegmentoAssociados(segPai.id);
+				}else{
+					Alert.show("Não foi possível associar o segmento!", "Alerta");
+				}
+			}
+			private function onResultDesassocicarSegmento(event:ResultEvent):void{
+				if(event.result == true){
+					ArrayCollection(segAssociadoGrid.dataProvider).removeItemAt(segAssociadoGrid.selectedIndex);
+					serviceController.findAllSegmentoDesassociados(segPai.idCheckin, segPai.id);
+				}else{
+					Alert.show("Não foi possível desassociar o segmento!", "Alerta");
+				}
+			}
+			private function onResultFindAllSegmentoDesassociados(event:ResultEvent):void{
+				segDesassociadoGrid.dataProvider = event.result;
+			}
+			private function onResultFindAllSegmentoAssociados(event:ResultEvent):void{
+				segAssociadoGrid.dataProvider = event.result;
+			}
+			
+			private function doubleClickSegDesassociado():void{
+				if(segDesassociadoGrid.selectedItem != null){
+					serviceController.associcarSegmento(SegmentoBean(segDesassociadoGrid.selectedItem).id, this.segPai.id)	
+				}
+			}			
+			private function doubleClickSegAssociado():void{
+				if(segAssociadoGrid.selectedItem != null){
+					serviceController.desassocicarSegmento(SegmentoBean(segAssociadoGrid.selectedItem).id)
+				}
+			}			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllSegmentoDesassociados" result="onResultFindAllSegmentoDesassociados(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllSegmentoAssociados" result="onResultFindAllSegmentoAssociados(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="associcarSegmento" result="onResultAssocicarSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="desassocicarSegmento" result="onResultDesassocicarSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>	
+	
+	<mx:DataGrid x="23" y="10" width="372" id="segDesassociadoGrid" height="451" doubleClickEnabled="true" doubleClick="doubleClickSegDesassociado()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Segmento Desassociado" dataField="descricao"/>			
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:DataGrid x="458" y="10" width="372" id="segAssociadoGrid" height="451" doubleClickEnabled="true" doubleClick="doubleClickSegAssociado()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Segmento Associado" dataField="descricao"/>			
+		</mx:columns>
+	</mx:DataGrid>
+</util:ModuleTitleWindow>

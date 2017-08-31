@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" title="Observação" layout="absolute" width="60%" height="604">
+	<mx:Script>
+		<![CDATA[
+			import bean.ItemBean;
+			import bean.NaturezaOperacaoBean;
+			import bean.SegmentoBean;
+			import bean.ServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.GridItem;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			public var click:Boolean = false;
+			private var beanServTerc:ServicoTerceirosBean;
+			private var urlLogin:String;
+			
+			public function init(beanServTerc:ServicoTerceirosBean, urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				this.beanServTerc = beanServTerc;
+				gridItem.addEventListener("EXCLUIR", rejeitarItem);
+				serviceController.findAllNaturezaOperacao();
+				serviceController.findAllItem();
+			}
+			
+			private function rejeitarItem(ev:Event):void{
+				ArrayCollection(gridItem.dataProvider).removeItemAt(gridItem.selectedIndex);			
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(obsTextArea.text == "" || naturezaOperacaoCbx.selectedIndex == -1){
+					Alert.show("Todos os campos são obrigatórios!", "Alerta");
+					return;
+				}
+				if(gridItem.dataProvider == null || ArrayCollection(gridItem.dataProvider).length == 0){
+					Alert.show("Favor adicionar item!", "Alerta");
+					return;
+				}
+				this.beanServTerc.idNaturezaOperacao = NaturezaOperacaoBean(naturezaOperacaoCbx.selectedItem).id;
+				this.beanServTerc.itemList = ArrayCollection(gridItem.dataProvider);
+				click = true;
+				this.close();
+			}
+			private function onResultFindAllNaturezaOperacao(event:ResultEvent):void{
+				naturezaOperacaoCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllItem(event:ResultEvent):void{
+				itemCbx.dataProvider = ArrayCollection(event.result);
+			}
+
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if(itemCbx.selectedIndex == -1 || qtdText.text == ""){
+					Alert.show("O campo Item e Quantidade são obrigatórios!", "Alerta");
+					return;
+				}
+				
+				var itemBean:ItemBean = ItemBean(itemCbx.selectedItem);
+				itemBean.qtd = Number(qtdText.text);
+				if(gridItem.dataProvider == null){
+					gridItem.dataProvider = new ArrayCollection();
+				}
+				ArrayCollection(gridItem.dataProvider).addItem(itemBean);
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllNaturezaOperacao" result="onResultFindAllNaturezaOperacao(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findAllItem" result="onResultFindAllItem(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="10" width="100%" horizontalAlign="center">
+		<mx:Label text="Natureza Operação"/>
+		<mx:ComboBox prompt="Selecione" labelField="descricao" id="naturezaOperacaoCbx"></mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox x="0" y="40" width="100%" horizontalAlign="center">
+		<mx:Label text="Item"/>
+		<mx:ComboBox prompt="Selecione" labelField="descricao" id="itemCbx"></mx:ComboBox>
+		<mx:Label text="QTD."/>
+		<mx:TextInput width="67" id="qtdText" restrict="0-9"/>
+		<mx:Button label="Add" click="button2_clickHandler(event)"/>
+	</mx:HBox>
+	<mx:HBox x="0" y="77" width="100%" horizontalAlign="center">
+		<mx:DataGrid width="366.5" height="186" id="gridItem">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Item" dataField="descricao"/>
+				<mx:DataGridColumn headerText="QTD" dataField="qtd"/>
+				<mx:DataGridColumn headerText="Valor&#13;Unitário" dataField="valor"/>
+				<mx:DataGridColumn headerText="Remover" dataField="rejeitar">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIR', true)) }" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:HBox>
+	<mx:HBox x="0" y="284" width="100%" horizontalAlign="center">
+		<mx:TextArea width="366.5" height="204" id="obsTextArea"/>
+	</mx:HBox>
+	<mx:HBox x="0" y="496" width="100%" horizontalAlign="center">
+		<mx:Button label="Ok" click="button1_clickHandler(event)"/>
+	</mx:HBox>
+	
+</util:ModuleTitleWindow>

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.CadSegmentoBean;
+			import bean.ComplexidadeBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var myValidators: Array;
+			private var cadSegmentoBean: CadSegmentoBean = new CadSegmentoBean();
+			private var urlLogin:String;
+			
+			public function init(urlLogin:String): void{
+				this.urlLogin = urlLogin;
+				gridSegmento.addEventListener("EXCLUIRSEGMENTO", removerSegmento);
+				myValidators = new Array();
+				myValidators.push(campoCodigo);
+				myValidators.push(campoFator);
+				myValidators.push(campoDescricao);
+				serviceController.findAllSegmento();
+			}			
+			private function onResultFindAllSegmento(event:ResultEvent): void{
+				gridSegmento.dataProvider = event.result;
+			}			
+			private function salvarModelo(): void{
+				var validatorErrorArray: Array = Validator.validateAll(myValidators);;
+				var isValidForm: Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					cadSegmentoBean.descricao = descricaoText.text;
+					cadSegmentoBean.fator = fatorText.text;
+					cadSegmentoBean.codigo = codigoText.text;					
+					serviceController.salvarSegmento(cadSegmentoBean);
+				} else {
+					var err: ValidationResultEvent;
+					var errorMessageArray: Array = [];
+					for each (err in validatorErrorArray) {
+						var errField: String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Formulário Inválido", Alert.OK);
+				}
+			}
+			
+			private function onResultSalvarSegmento(event:ResultEvent): void{
+				if(event.result != null){
+					cadSegmentoBean = CadSegmentoBean(event.result);
+					Alert.show("Transação realizada com sucesso.");
+					init(urlLogin);
+					codigoText.text = "";
+					descricaoText.text = "";
+					fatorText.text = "";
+				}else{
+					Alert.show("Ocorreu um erro ao salvar o Segmento!");
+				}
+			}
+			
+			private function removerSegmento(ev: Event): void{
+				var seg:CadSegmentoBean = CadSegmentoBean(gridSegmento.selectedItem);
+				
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+			}			
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					cadSegmentoBean = CadSegmentoBean(gridSegmento.selectedItem);
+					serviceController.removerCadSegmento(cadSegmentoBean);
+				}
+			}
+			
+			private function onResultRemoverCadSegmento(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					Alert.show("Segmento excluída com sucesso.");
+					limparCampos();
+					serviceController.findAllSegmento();
+					
+				}else{
+					Alert.show("Ocorreu um erro ao excluir o Segmento!");
+				}
+			}
+			
+			private function gridDoubleClick(): void{
+				if(gridSegmento.selectedItem != null){
+					if(gridSegmento.selectedIndex != -1) {
+						cadSegmentoBean = CadSegmentoBean(gridSegmento.selectedItem);
+						descricaoText.text = cadSegmentoBean.descricao;
+						codigoText.text = cadSegmentoBean.codigo;
+						fatorText.text = cadSegmentoBean.fator;
+					}
+				}
+			}			
+			
+			private function limparCampos(): void{
+				cadSegmentoBean = new CadSegmentoBean();
+				descricaoText.text = "";
+				fatorText.text = "";
+				codigoText.text = "";
+			}
+			
+			private function novo(): void{
+				limparCampos();
+				descricaoText.setFocus();
+				fatorText.setFocus();
+				codigoText.setFocus();
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				this.limparCampos();
+			}
+			
+		]]>  
+	</mx:Script>
+	<mx:StringValidator id="campoCodigo" requiredFieldError="Este campo é obrigatório!" required="true" source="{codigoText}" property="text" />
+	<mx:StringValidator id="campoFator" requiredFieldError="Este campo é obrigatório!" required="true" source="{fatorText}" property="text" />
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo é obrigatório!" required="true" source="{descricaoText}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllSegmento" result="onResultFindAllSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerCadSegmento" result="onResultRemoverCadSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="salvarSegmento" result="onResultSalvarSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+		
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Cadastro de Segmento" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="62" width="100%" horizontalAlign="center">
+		<mx:VBox width="100%" horizontalAlign="center">
+			<mx:Form>
+				<mx:FormItem label="Descrição" required="true">
+					<mx:TextInput id="descricaoText" maxChars="255"/>				
+				</mx:FormItem>
+				<mx:FormItem label="Fator" required="true" width="265">
+					<control:DecimalInput editable="true"  id="fatorText" width="93" maxChars="6" precision="2" currencyFormat="us" useThousandsSeparator="true"/>							
+				</mx:FormItem>						
+				<mx:FormItem label="Código" required="true">
+					<mx:TextInput id="codigoText" maxChars="4"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:HBox>
+				<mx:Button label="Salvar" click="salvarModelo()"/>
+				<mx:Button label="Novo" click="button1_clickHandler(event)"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:DataGrid x="0" y="234" width="100%" height="420" id="gridSegmento" doubleClick="gridDoubleClick()" doubleClickEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Fator" dataField="fator"/>
+			<mx:DataGridColumn headerText="Codigo" dataField="codigo"/>
+			<mx:DataGridColumn headerText="Excluir" dataField="excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRSEGMENTO', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>	
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

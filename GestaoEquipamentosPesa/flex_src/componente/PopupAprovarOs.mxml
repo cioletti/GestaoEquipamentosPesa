@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Aprovar Criação de OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			
+			import util.ProgressBarHelper;
+			
+			import mx.rpc.events.ResultEvent;
+			private var urlLogin:String;
+			private var idCheckIn:Number;
+			public function init(urlLogin:String, idCheckIn:Number):void{
+				this.urlLogin = urlLogin;
+				this.idCheckIn = idCheckIn;
+			}
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				serviceController.aprovarOs(this.idCheckIn, aprovarOsCbx.selectedItem.valor);
+			}
+			private function onResultAprovarOs(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Os aprovada com sucesso!", "Alerta");
+				}else{
+					Alert.show("Não foi possível aprovar OS!", "Alerta");
+				}
+			}
+		]]>
+	</mx:Script>
+
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="aprovarOs" result="onResultAprovarOs(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:ArrayCollection id="aprovarOS">
+		
+		<mx:Object label="Aprovado" valor="S"/>
+		<mx:Object label="Rejeitado" valor="R"/>
+	</mx:ArrayCollection>
+	<mx:ComboBox labelField="label" dataProvider="{aprovarOS}" prompt="Selecione" x="137" y="57" id="aprovarOsCbx"/>
+	<mx:Button label="Salvar" x="159" y="106" click="button1_clickHandler(event)"/>
+</util:ModuleTitleWindow>

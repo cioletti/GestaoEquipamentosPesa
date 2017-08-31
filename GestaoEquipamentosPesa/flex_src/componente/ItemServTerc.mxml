@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.ItemBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Text;
+			import mx.events.CloseEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var itemBean:ItemBean = new ItemBean();
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				gridItem.addEventListener("EXCLUIRITEM", removerItem);
+				myValidators = new Array();
+				myValidators.push(campoDescricao);
+				myValidators.push(campoCodigo);
+				myValidators.push(campoValor);
+				serviceController.findAllItem();
+			}
+			
+			private function removerItem (ev: Event):void{	
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.removerItem(ItemBean(gridItem.selectedItem).id);					
+				}
+			}
+			private function saveItem():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {				
+					
+					itemBean.descricao = descricao.text;
+					itemBean.codigo = codigo.text;
+					itemBean.valor = valor.text;
+					serviceController.saveOrUpdate(itemBean);										
+				} else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			private function novo():void{
+				itemBean = new ItemBean();
+				descricao.text = "";
+				codigo.text = "";
+				valor.text = "";
+			}
+			private function doubleClick():void{
+				itemBean = ItemBean(gridItem.selectedItem);
+				descricao.text = itemBean.descricao;
+				codigo.text = itemBean.codigo;
+				valor.text = itemBean.valor;
+			}
+			private function onResultFindAllItem (event:ResultEvent):void{
+				gridItem.dataProvider = event.result;
+			}
+			private function onResultRemoverItem (event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					this.novo();
+					serviceController.findAllItem();
+				}else{
+					Alert.show("Erro ao tentar remover item, verifique se o mesmo não está sendo utilizado!", "Alerta");
+				}
+			}
+			private function onResultSaveOrUpdate (event:ResultEvent):void{
+				if(ItemBean(event.result) != null){
+					itemBean = ItemBean(event.result);
+					serviceController.findAllItem();
+					Alert.show("Item salvo com sucesso!", "Alerta");
+				}else{
+					Alert.show("Erro ao tentar salvar item!", "Alerta");
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo  obrigatório!" required="true" source="{descricao}" property="text" />
+	<mx:StringValidator id="campoCodigo" requiredFieldError="Este campo  obrigatório!" required="true" source="{codigo}" property="text" />
+	<mx:StringValidator id="campoValor" requiredFieldError="Este campo  obrigatório!" required="true" source="{valor}" property="text" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllItem" result="onResultFindAllItem(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerItem" result="onResultRemoverItem(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>	
+	
+	<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+		<mx:Label text="Item Serviço de Terceiros" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="60" width="100%" horizontalAlign="center" height="115">
+		<mx:Form >
+			<mx:FormItem label="Nome Item" width="265">
+				<mx:TextInput id="descricao" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Código Item" width="265">
+				<mx:TextInput id="codigo" maxChars="30"/>
+			</mx:FormItem>	
+			<mx:FormItem label="Valor" width="265">
+				<control:DecimalInput editable="true"  id="valor" width="93"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>	
+		</mx:Form>
+	</mx:HBox>
+	<mx:DataGrid x="0" y="285" height="100%" width="100%" id="gridItem" doubleClickEnabled="true" doubleClick="doubleClick()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Nome Item" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Codigo Item" dataField="codigo"/>
+			<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+			<mx:DataGridColumn headerText="Excluir" dataField="excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRITEM', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:HBox x="0" y="183" width="100%" horizontalAlign="center">
+		<mx:Button label="Salvar" click="saveItem();"/>
+		<mx:Button label="Novo" click="novo()"/>
+	</mx:HBox>
+	
+</mx:Canvas>

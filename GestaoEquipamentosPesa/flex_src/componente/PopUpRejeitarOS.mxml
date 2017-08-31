@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Rejeitar OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="498" height="292">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.GestorOSBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			import mx.containers.*;
+			
+			import util.ProgressBarHelper;
+			private var myValidators:Array;
+			private var urlLogin:String;
+			private var numOS:String;
+			public var cptcd:String;
+			public var cptcdCode:String;
+			public var cptcdDescricao:String;
+			private var gestorOS: GestorOSBean = new GestorOSBean();
+			public function init(urlLogin:String, numOS:String, gestorOS:GestorOSBean):void{
+				this.urlLogin = urlLogin;
+				this.numOS = numOS;
+				this.gestorOS = gestorOS;
+				myValidators = new Array();
+				myValidators.push(campoMotivoCbx);
+				myValidators.push(campoObsText);
+			}
+			private function confirmRejeitarOS():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {					
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("Deseja realmente rejeitar a OS?", "Alerta", 3, this, alertClickHandlerRejeitarOS);	
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			
+			private function alertClickHandlerRejeitarOS(event:CloseEvent):void { 				
+				if (event.detail==Alert.YES) {	
+					var tipoRejeicao:String = motivoCbx.selectedItem.valor;
+					serviceController.rejeitarOS(tipoRejeicao, obsText.text, numOS);
+				}else{
+					return;
+				}	
+			}
+			public function onResultRejeitarOS(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("OS rejeitada com sucesso!", "Alerta");	
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao rejeitar a OS!", "Alerta");
+				}				
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="motivoRejeicao">
+		<mx:Object label="Parcial" valor="PARCIAL"/>
+		<mx:Object label="Total" valor="TOTAL"/>		
+	</mx:ArrayCollection>
+	
+	<mx:NumberValidator id="campoMotivoCbx" source="{motivoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoObsText" requiredFieldError="Este campo  obrigatório!" required="true" source="{obsText}" property="text" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="rejeitarOS" result="onResultRejeitarOS(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Form x="10" y="10" width="458" height="206">
+		<mx:FormItem label="Tipo da rejeição:">
+	<mx:ComboBox x="164" y="26" id="motivoCbx" dataProvider="{motivoRejeicao}" prompt="Selecione">
+	</mx:ComboBox>			
+		</mx:FormItem>
+		<mx:FormItem label="Observação:" width="411" height="115">
+		<mx:TextArea width="269" height="108" maxChars="255" id="obsText" />
+		</mx:FormItem>
+		<mx:FormItem>
+	<mx:Button x="145" y="202" label="Confirmar" click="confirmRejeitarOS()"/>		
+			
+		</mx:FormItem>
+	</mx:Form>
+			
+		
+			
+	
+	
+	
+</util:ModuleTitleWindow>

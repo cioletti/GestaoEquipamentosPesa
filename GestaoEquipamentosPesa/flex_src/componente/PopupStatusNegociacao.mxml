@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Observação Status" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	
+		<mx:Script>
+			<![CDATA[
+				import mx.rpc.events.ResultEvent;
+				
+				import util.ProgressBarHelper;
+				private var urlLogin:String;
+				public function init(numeroOs:String, urlLogin:String):void{
+					serviceController.findSituacaoOSBO(numeroOs);
+					this.urlLogin = urlLogin;
+				}
+				private function onResultFindSituacaoOs(event:ResultEvent){
+					labelBo.text = String(event.result);
+				}
+			]]>
+		</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findSituacaoOSBO" result="onResultFindSituacaoOs(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:TextArea x="10" y="25" width="352" height="222" id="descricaoStatusNegociacaoTxt" editable="false"/>
+	<mx:Label x="10" y="6" text="" id="labelBo" width="100%"/>
+</util:ModuleTitleWindow>

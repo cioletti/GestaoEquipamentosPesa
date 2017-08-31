@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Solicitação de Abertura de OS de Garantia" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1088" height="100%">
+<mx:Script>
+	<![CDATA[
+		import bean.FornecedorServicoTerceirosBean;
+		import bean.GeFormularioAprovacaoOsBean;
+		import bean.UsuarioBean;
+		
+		import mx.controls.Alert;
+		import mx.core.IFlexDisplayObject;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		
+		import util.ProgressBarHelper;
+
+		private var idFormulario:Number;
+		private var urlLogin:String;
+		private var usuarioBean:UsuarioBean;
+		
+		private var codigoCliente:String;
+		private var cliente:String;
+		private var tipoSistema:String;
+		private var filialCriacaoOS:String;
+		private var maquinaParou:String;
+		private var tipoSolicitacao:String;
+		public function init(urlLogin:String, usuarioBean:UsuarioBean, codigoCliente:String, cliente:String, tipoSistema:String, filialCriacaoOS:String, maquinaParou:String, tipoSolicitacao:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.codigoCliente = codigoCliente;
+			this.cliente = cliente;
+			this.tipoSistema = tipoSistema;
+			this.filialCriacaoOS = filialCriacaoOS;
+			this.maquinaParou = maquinaParou;
+			this.tipoSolicitacao = tipoSolicitacao;
+			if(codigoCliente == (String("09XX023").replace('XX', this.usuarioBean.filial))){
+				formGarPecas.visible = true;
+				formGarPecas.includeInLayout = true;
+			}
+			
+			if(codigoCliente == (String("09XX463").replace('XX', this.usuarioBean.filial)) ||
+				codigoCliente == (String("09XX025").replace('XX', this.usuarioBean.filial))||
+				codigoCliente == (String("09XX468").replace('XX', this.usuarioBean.filial))||
+				codigoCliente == (String("09XX469").replace('XX', this.usuarioBean.filial))){
+				formGarantiaServico.visible = true;
+				formGarantiaServico.includeInLayout = true;
+			}
+			if(codigoCliente != (String("09XX023").replace('XX', this.usuarioBean.filial))&&
+				codigoCliente != (String("09XX463").replace('XX', this.usuarioBean.filial)) &&
+				codigoCliente != (String("09XX025").replace('XX', this.usuarioBean.filial))&&
+				codigoCliente != (String("09XX468").replace('XX', this.usuarioBean.filial))&&
+				codigoCliente != (String("09XX469").replace('XX', this.usuarioBean.filial))){
+				formEntregaTecnica.visible = true;
+				formEntregaTecnica.includeInLayout = true;
+			}
+//			if(usuarioBean.isAdm == false){
+				aprovarBtn.visible = false;
+				rejeitarBtn.visible = false;
+//				salvarBtn.visible = false;
+//			}
+			
+		}
+		
+		public function init2(urlLogin:String, usuarioBean:UsuarioBean, beanForm:GeFormularioAprovacaoOsBean, isAdm:Boolean, tipoSistema:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.idFormulario = beanForm.id;
+			this.codigoCliente = beanForm.codigoCliente;
+			this.tipoSistema = tipoSistema;
+//			if(codigoCliente == (String("09XX023").replace('XX', this.usuarioBean.filial))){
+//				formGarPecas.visible = true;
+//				formGarPecas.includeInLayout = true;
+//			}
+//			
+//			if(codigoCliente == (String("09XX463").replace('XX', this.usuarioBean.filial)) ||
+//				codigoCliente == (String("09XX025").replace('XX', this.usuarioBean.filial))||
+//				codigoCliente == (String("09XX468").replace('XX', this.usuarioBean.filial))||
+//				codigoCliente == (String("09XX469").replace('XX', this.usuarioBean.filial))){
+//				formGarantiaServico.visible = true;
+//				formGarantiaServico.includeInLayout = true;
+//			}
+//			if(codigoCliente != (String("09XX023").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX463").replace('XX', this.usuarioBean.filial)) &&
+//				codigoCliente != (String("09XX025").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX468").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX469").replace('XX', this.usuarioBean.filial))){
+//				formEntregaTecnica.visible = true;
+//				formEntregaTecnica.includeInLayout = true;
+//			}
+			if(isAdm == false){
+				aprovarBtn.visible = false;
+				rejeitarBtn.visible = false;
+				salvarBtn.visible = false;
+			}
+			if(beanForm.status == 'Rejeitado'){
+				salvarBtn.visible = true;
+				aprovacaoOs = beanForm;
+			}
+			serviceController.findFormularioAprovarOsById(beanForm.id);
+		}
+		
+		public function initAprovar(urlLogin:String, usuarioBean:UsuarioBean, beanForm:GeFormularioAprovacaoOsBean, isAdm:Boolean, tipoSistema:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.idFormulario = beanForm.id;
+			this.tipoSistema = tipoSistema;
+			this.codigoCliente = beanForm.codigoCliente;
+			this.aprovacaoOs = beanForm;
+			if(codigoCliente == (String("09XX023").replace('XX', this.usuarioBean.filial))){
+				formGarPecas.visible = true;
+				formGarPecas.includeInLayout = true;
+			}
+			
+//			if(codigoCliente == (String("09XX463").replace('XX', this.usuarioBean.filial)) ||
+//				codigoCliente == (String("09XX025").replace('XX', this.usuarioBean.filial))||
+//				codigoCliente == (String("09XX468").replace('XX', this.usuarioBean.filial))||
+//				codigoCliente == (String("09XX469").replace('XX', this.usuarioBean.filial))){
+//				formGarantiaServico.visible = true;
+//				formGarantiaServico.includeInLayout = true;
+//			}
+//			if(codigoCliente != (String("09XX023").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX463").replace('XX', this.usuarioBean.filial)) &&
+//				codigoCliente != (String("09XX025").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX468").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX469").replace('XX', this.usuarioBean.filial))){
+//				formEntregaTecnica.visible = true;
+//				formEntregaTecnica.includeInLayout = true;
+//			}
+			//if(isAdm == false){
+			aprovarBtn.visible = true;
+			rejeitarBtn.visible = true;
+			salvarBtn.visible = true;
+			//pecasBtn.visible = false;
+			//}
+			serviceController.findFormularioAprovarOsById(idFormulario);
+		}
+		
+		private function onResultFindFormularioAprovarOs(ev:ResultEvent):void{
+			if(ev.result != null){
+				var geAprovar:GeFormularioAprovacaoOsBean = GeFormularioAprovacaoOsBean(ev.result);
+				this.setBean(geAprovar);
+			}
+		}
+		
+		private function setBean(aprovacaoOs:GeFormularioAprovacaoOsBean):void{
+			arranjoMaquinaTxt.text = aprovacaoOs.arranjoMaquina;
+			nomeContatoTxt.text = aprovacaoOs.nomeContato;
+			telContatoTxt.text = aprovacaoOs.telConcato;
+			horimetroMaquinaTxt.text = String(aprovacaoOs.horimetroPeca);
+			entregaTecnicaTxt.text = aprovacaoOs.entregaTecnica;
+			maquinaNovaTxt.selected = (aprovacaoOs.maquinaNova == 'S')?true:false;
+			pecasVendidasBalcaoTxt.selected = (aprovacaoOs.pecaVendBalcao == 'S')?true:false;
+			pecasVendidasOsTxt.selected  = ( aprovacaoOs.pecaVendOs == 'S')?true:false;
+			servicoRefeitoTxt.selected = (aprovacaoOs.servicoRefeito == 'S')?true:false;
+			nrNFVendaTxt.text  = aprovacaoOs.nrNfVenda;
+			nrOsAnteriorTxt.text = aprovacaoOs.nrOsAnterior;
+			maquinaUsadaTxt.selected = (aprovacaoOs.maquinaUsada == 'S')?true:false;
+			pesaLTxt.selected = ( aprovacaoOs.pesaL == 'S')?true:false;
+			if(aprovacaoOs.dataVenda != null && aprovacaoOs.dataVenda != ''){
+				dataVendaTxt.text = aprovacaoOs.dataVenda;
+			}
+			if(aprovacaoOs.dataEntregaTecnica != null && aprovacaoOs.dataEntregaTecnica != ''){
+				dataEntregaTecnicaTxt.text = aprovacaoOs.dataEntregaTecnica;
+			}
+			oscustomizacaoTxt.text = aprovacaoOs.osCustomizacao;
+			descComponente.text = aprovacaoOs.descComponente;
+			descricaoSintomasMaquina.text = aprovacaoOs.descSintomasMaquina;
+			descricaoReparo.text = aprovacaoOs.descricaoReparo;
+			fotosComponenteTxt.selected = (aprovacaoOs.fotoComponente == 'S')?true:false;
+			amostraOleoSOSTxt.selected = (aprovacaoOs.amostraOleoSos == 'S')?true:false;
+			testeLeakoffTxt.selected= (aprovacaoOs.testeLeakoff == 'S')?true:false;
+			downloadServiceReportETTxt.selected = (aprovacaoOs.downloadServiceReportEt == 'S')?true:false;
+			inspecaoMaterialRodanteCTPSTxt.selected = (aprovacaoOs.inspecaoMaterialRodanteCtps == 'S')?true:false;
+			relatorioConsumoOleoLubrificanteTxt.selected = (aprovacaoOs.relatorioConsumoOeloLubrificante == 'S')?true:false;
+			faltouFerramentoTxt.selected = (aprovacaoOs.faltouFerramento == 'S')?true:false;
+			consultouManualServicoTxt.selected = (aprovacaoOs.consultouManualServico == 'S')?true:false;
+			tempoReparoSuficienteTxt.selected = (aprovacaoOs.tempoReparoSuficiente == 'S')?true:false;
+			componentePassouTesteTxt.selected = (aprovacaoOs.componentePassouTeste == 'S')?true:false;
+			recebeuTreinamentoTxt.selected = (aprovacaoOs.recebeuTreinamento == 'S')?true:false;
+			recebeuInformacaoCompletareparoTxt.selected = (aprovacaoOs.recebeuInformacaoCompletaReparo == 'S')?true:false;
+			falhaGeradaDiagnosticaoIncorretoTxt.selected = (aprovacaoOs.falhaGeradaDiagnosticoIncorreto == 'S')?true:false;
+			clienteInfluenciouPropostaTxt.selected = (aprovacaoOs.clienteInfluenciouProposta == 'S')?true:false;
+			foiConsultadoServicoOSAnteriorTxt.selected = (aprovacaoOs.foiConsultadoServicoOsAnterior == 'S')?true:false;
+			foiCortadoPecaOrcamentoAnteriorTxt.selected = (aprovacaoOs.foiCortadoPecasOrcamentoAnterior == 'S')?true:false;
+			modeloTxt.text = aprovacaoOs.modelo;
+			serieTxt.text = aprovacaoOs.serie;
+			clienteTxt.text = aprovacaoOs.clientePesa;
+			this.tipoSolicitacao = aprovacaoOs.tipoSolicitacao;
+			this.codigoCliente = aprovacaoOs.codigoCliente;
+			this.cliente = aprovacaoOs.cliente;
+			this.tipoSistema = aprovacaoOs.tipoSistema;
+			outrosText.text = aprovacaoOs.outros;
+			this.maquinaParou = aprovacaoOs.maquinaParou
+			//aprovacaoOs.idCheckIn = this.idCheckIn;
+			//serviceController.salvarFormularioAprovarOs(aprovacaoOs);
+		}
+		
+		protected function button1_clickHandler(event:MouseEvent):void
+		{
+//			if(arranjoMaquinaTxt.text == '' ||
+//				nomeContatoTxt.text == '' ||
+//				telContatoTxt.text == '' ||
+//				horimetroMaquinaTxt.text == '' ||
+//				entregaTecnicaTxt.text == '' ||
+//					dataVendaTxt.text == '' ||
+//					dataEntregaTecnicaTxt.text == '' ||
+//				oscustomizacaoTxt.text == '' ||
+//				descComponente.text == '' ||
+//				descricaoSintomasMaquina.text == '' ||
+//				descricaoReparo.text == '' ||
+//				modeloTxt.text == '' ||
+//				serieTxt.text == ''){
+//				Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+//				return;
+//			}
+			//if(codigoCliente == (String("09XX023").replace('XX', this.usuarioBean.filial))){
+				if(//arranjoMaquinaTxt.text == '' ||
+					nomeContatoTxt.text == '' ||
+					telContatoTxt.text == '' ||
+					//horimetroMaquinaTxt.text == '' ||
+					//entregaTecnicaTxt.text == '' ||
+					dataVendaTxt.text == '' ||
+					//dataEntregaTecnicaTxt.text == '' ||
+					//oscustomizacaoTxt.text == '' ||
+					descComponente.text == '' ||
+					descricaoSintomasMaquina.text == '' ||
+					descricaoReparo.text == '' ||
+					modeloTxt.text == '' ||
+					serieTxt.text == '' ||
+					clienteTxt.text == '' ||
+					oscustomizacaoTxt.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+			}
+//				else if(codigoCliente != (String("09XX023").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX463").replace('XX', this.usuarioBean.filial)) &&
+//				codigoCliente != (String("09XX025").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX468").replace('XX', this.usuarioBean.filial))&&
+//				codigoCliente != (String("09XX469").replace('XX', this.usuarioBean.filial))){
+//				if(//arranjoMaquinaTxt.text == '' ||
+//					nomeContatoTxt.text == '' ||
+//					telContatoTxt.text == '' ||
+//					//horimetroMaquinaTxt.text == '' ||
+//					//entregaTecnicaTxt.text == '' ||
+//					dataVendaTxt.text == '' ||
+//					//dataEntregaTecnicaTxt.text == '' ||
+//					oscustomizacaoTxt.text == '' ||
+//					descComponente.text == '' ||
+//					descricaoSintomasMaquina.text == '' ||
+//					descricaoReparo.text == '' ||
+//					modeloTxt.text == '' ||
+//					serieTxt.text == '' ||
+//					clienteTxt.text == ''){
+//					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+//					return;
+//				}
+//			}
+				
+//			}
+			
+			if(pecasVendidasBalcaoTxt.selected == true && nrNFVendaTxt.text == ''){
+				Alert.show("O número da OS anterior é obrigatório!", "Alerta");
+				return;
+			}
+			
+			if(pecasVendidasOsTxt.selected == true && nrOsAnteriorTxt.text == ''){
+				Alert.show("O Nr. da Nf de Venda é obrigatório!", "Alerta");
+				return;
+			}
+			
+			
+			serviceController.validarNumSerieAprovarOs(serieTxt.text);
+			
+		}
+		
+		private function onResultSalvarFormularioAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				Alert.show("Transação realizada com sucesso!", "Alerta");
+				this.close(null);
+			}else{
+				Alert.show("Não foi possível realizar transação!", "Alerta");
+			}
+		}
+
+		private function onResultAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				Alert.show("Transação realizada com sucesso!", "Alerta");
+				this.close(null);
+			}else{
+				Alert.show("Não foi possível realizar transação!", "Alerta");
+			}
+		}
+
+		protected function button2_clickHandler(event:MouseEvent):void
+		{
+			this.setBeanServer();
+			serviceController.aprovarOs( true, null, this.aprovacaoOs);
+		}
+
+
+		private var popMotivorejeicao:PopupMotivoRejecaoCriacaoOS = new PopupMotivoRejecaoCriacaoOS();
+		protected function button3_clickHandler(event:MouseEvent):void
+		{
+			
+			popMotivorejeicao.addEventListener(CloseEvent.CLOSE, removeoRejeicaoPopUp);
+			PopUpManager.addPopUp(popMotivorejeicao, this, true);
+			PopUpManager.centerPopUp(popMotivorejeicao);
+		}
+		private function removeoRejeicaoPopUp(obj:CloseEvent):void{
+			PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			if(popMotivorejeicao.motivoRejeicaoTxt.text != ''){
+				this.setBeanServer();
+//				if(this.aprovacaoOs.obsRejeicao != null && this.aprovacaoOs.obsRejeicao != ''){
+//					serviceController.aprovarOs(false, aprovacaoOs.obsRejeicao+'\n'+popMotivorejeicao.motivoRejeicaoTxt.text, this.aprovacaoOs);
+//				}else{
+					serviceController.aprovarOs(false, popMotivorejeicao.motivoRejeicaoTxt.text, this.aprovacaoOs);
+				//}
+				//serviceController.aprovarOs(false, popMotivorejeicao.motivoRejeicaoTxt.text, this.aprovacaoOs);
+			}
+		}
+		
+		private	var aprovacaoOs:GeFormularioAprovacaoOsBean = new GeFormularioAprovacaoOsBean();
+		private function onResultValidarNumSerieAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				this.setBeanServer();
+				//aprovacaoOs.idCheckIn = this.idCheckIn;
+				serviceController.salvarFormularioAprovarOs(aprovacaoOs);
+			}else{
+				Alert.show("O número de série não é válido!", "Alerta");
+			}
+		}
+		
+		private function setBeanServer():void{
+			aprovacaoOs.arranjoMaquina = arranjoMaquinaTxt.text;
+			aprovacaoOs.nomeContato = nomeContatoTxt.text;
+			aprovacaoOs.telConcato = telContatoTxt.text;
+			aprovacaoOs.horimetroPeca = Number(horimetroMaquinaTxt.text);
+			aprovacaoOs.entregaTecnica = entregaTecnicaTxt.text;
+			aprovacaoOs.maquinaNova = (maquinaNovaTxt.selected == true)?'S':'N';
+			aprovacaoOs.pecaVendBalcao = (pecasVendidasBalcaoTxt.selected == true)?'S':'N';
+			aprovacaoOs.pecaVendOs = (pecasVendidasOsTxt.selected == true)?'S':'N';
+			aprovacaoOs.servicoRefeito = (servicoRefeitoTxt.selected == true)?'S':'N';
+			aprovacaoOs.nrNfVenda  = nrNFVendaTxt.text;
+			aprovacaoOs.nrOsAnterior = nrOsAnteriorTxt.text;
+			aprovacaoOs.maquinaUsada = (maquinaUsadaTxt.selected == true)?'S':'N';
+			aprovacaoOs.pesaL = (pesaLTxt.selected == true)?'S':'N';
+			if(dataVendaTxt.text != null && dataVendaTxt.text != ''){
+				aprovacaoOs.dataVenda = dataVendaTxt.text;
+			}
+			if(dataEntregaTecnicaTxt.text != null && dataEntregaTecnicaTxt.text != ''){
+				aprovacaoOs.dataEntregaTecnica = dataEntregaTecnicaTxt.text;
+			}
+			aprovacaoOs.osCustomizacao = oscustomizacaoTxt.text;
+			aprovacaoOs.descComponente = descComponente.text;
+			aprovacaoOs.descSintomasMaquina = descricaoSintomasMaquina.text;
+			aprovacaoOs.descricaoReparo = descricaoReparo.text;
+			aprovacaoOs.fotoComponente = (fotosComponenteTxt.selected == true)?'S':'N';
+			aprovacaoOs.amostraOleoSos = (amostraOleoSOSTxt.selected == true)?'S':'N';
+			aprovacaoOs.testeLeakoff = (testeLeakoffTxt.selected == true)?'S':'N';
+			aprovacaoOs.downloadServiceReportEt = (downloadServiceReportETTxt.selected == true)?'S':'N';
+			aprovacaoOs.inspecaoMaterialRodanteCtps = (inspecaoMaterialRodanteCTPSTxt.selected == true)?'S':'N';
+			aprovacaoOs.relatorioConsumoOeloLubrificante = (relatorioConsumoOleoLubrificanteTxt.selected == true)?'S':'N';
+			aprovacaoOs.faltouFerramento = (faltouFerramentoTxt.selected == true)?'S':'N';
+			aprovacaoOs.consultouManualServico = (consultouManualServicoTxt.selected == true)?'S':'N';
+			aprovacaoOs.tempoReparoSuficiente = (tempoReparoSuficienteTxt.selected == true)?'S':'N';
+			aprovacaoOs.componentePassouTeste = (componentePassouTesteTxt.selected == true)?'S':'N';
+			aprovacaoOs.recebeuTreinamento = (recebeuTreinamentoTxt.selected == true)?'S':'N';
+			aprovacaoOs.recebeuInformacaoCompletaReparo = (recebeuInformacaoCompletareparoTxt.selected == true)?'S':'N';
+			aprovacaoOs.falhaGeradaDiagnosticoIncorreto = (falhaGeradaDiagnosticaoIncorretoTxt.selected == true)?'S':'N';
+			aprovacaoOs.clienteInfluenciouProposta = (clienteInfluenciouPropostaTxt.selected == true)?'S':'N';
+			aprovacaoOs.foiConsultadoServicoOsAnterior = (foiConsultadoServicoOSAnteriorTxt.selected == true)?'S':'N';
+			aprovacaoOs.foiCortadoPecasOrcamentoAnterior = (foiCortadoPecaOrcamentoAnteriorTxt.selected == true)?'S':'N';
+			aprovacaoOs.modelo = modeloTxt.text;
+			aprovacaoOs.serie = serieTxt.text;
+			aprovacaoOs.clientePesa = clienteTxt.text;
+			aprovacaoOs.codigoCliente = this.codigoCliente;
+			//aprovacaoOs.tipoSolicitacao = 'GGG';
+			aprovacaoOs.tipoSolicitacao = tipoSolicitacao;
+			aprovacaoOs.cliente = this.cliente;
+			aprovacaoOs.tipoSistema = this.tipoSistema;
+			aprovacaoOs.filialCriacaoOS = this.filialCriacaoOS;
+			aprovacaoOs.outros = outrosText.text;
+			aprovacaoOs.obsRejeicao = outrosText.text;
+			aprovacaoOs.maquinaParou = this.maquinaParou;
+		}
+
+	]]>
+</mx:Script>
+
+<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+	<mx:method name="salvarFormularioAprovarOs" result="onResultSalvarFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="aprovarOs" result="onResultAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="findFormularioAprovarOsById" result="onResultFindFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="validarNumSerieAprovarOs" result="onResultValidarNumSerieAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+</mx:RemoteObject>
+<mx:HBox x="35" y="26">
+	<mx:Form x="27" y="26">
+		<mx:FormItem label="Cliente">
+			<mx:TextInput id="clienteTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Série">
+			<mx:TextInput id="serieTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Modelo">
+			<mx:TextInput id="modeloTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Arranjo da Máquina" includeInLayout="false" visible="false">
+			<mx:TextInput id="arranjoMaquinaTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Nome de Contato">
+			<mx:TextInput id="nomeContatoTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Tel. de Contato">
+			<mx:TextInput id="telContatoTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Form x="377" y="26" visible="true" includeInLayout="true" id="formGarPecas">
+		<mx:FormItem label="Horímetro da Peça" visible="false" includeInLayout="false">
+			<mx:TextInput restrict="[0-9]" id="horimetroMaquinaTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Entrega Técnica" visible="false" includeInLayout="false">
+			<mx:TextInput id="entregaTecnicaTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Máquina nova" visible="false" includeInLayout="false">
+			<mx:CheckBox id="maquinaNovaTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Peças Vendidas no Balcão" visible="false" includeInLayout="false">
+			<mx:HBox horizontalAlign="center">
+				<mx:CheckBox id="pecasVendidasBalcaoTxt"/>
+				<mx:Label text="Nr. NF. Venda  "/>
+				<mx:TextInput id="nrNFVendaTxt" width="110"/>
+			</mx:HBox>
+		</mx:FormItem>
+		<mx:FormItem label="Peças Vendidas em OS" visible="false" includeInLayout="false">
+			<mx:HBox horizontalAlign="center">
+				<mx:CheckBox id="pecasVendidasOsTxt"/>
+				<mx:Label text="Nr. Os Anterior"/>
+				<mx:TextInput id="nrOsAnteriorTxt" width="112"/>
+			</mx:HBox>
+			
+		</mx:FormItem>
+		<mx:FormItem label="Data Venda">
+			<mx:DateField formatString="DD/MM/YYYY" dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+						  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']" id="dataVendaTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Nr. NF Venda">
+			<mx:TextInput id="oscustomizacaoTxt"/>
+		</mx:FormItem>
+		
+	</mx:Form>
+	<mx:Form x="923" y="26" id="formEntregaTecnica" visible="true" includeInLayout="true">
+		<mx:FormItem label="Data Entrega Técnica" visible="false" includeInLayout="false">
+			<mx:DateField formatString="DD/MM/YYYY" dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+						  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']" id="dataEntregaTecnicaTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+</mx:HBox>
+	
+	<mx:Label text="Descrição do Componente" x="91" y="200"/>
+	<!--mx:Label text="Documentação de Apoio de Garantia" x="211" y="336"/-->
+	<mx:Label text="Descrição dos Sintomas da Máquina" x="357" y="200"/>
+	
+	<mx:Form x="745" y="26">
+		<mx:FormItem label="Serviço Refeito" visible="false" includeInLayout="false">
+			<mx:CheckBox id="servicoRefeitoTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Máquina Usada" visible="false" includeInLayout="false">
+			<mx:CheckBox id="maquinaUsadaTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="PESA l" visible="false" includeInLayout="false">
+			<mx:CheckBox id="pesaLTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:TextArea x="27" y="226" width="323" height="103" id="descComponente"/>
+	<mx:TextArea x="357" y="226" width="323" height="103" id="descricaoSintomasMaquina"/>
+	<mx:Label text="Descrição do Reparo" x="688" y="200"/>
+	<mx:Label text="Observações" x="27" y="337"/>
+	<mx:TextArea x="688" y="226" width="323" height="103" id="descricaoReparo"/>
+	<mx:TextArea x="27" y="355" width="384" height="98" id="outrosText"/>
+	<mx:Form x="108" y="354" includeInLayout="false" visible="false">
+		<mx:FormItem label="Fotos do Componente">
+			<mx:CheckBox id="fotosComponenteTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Amostra de Óleo SOS">
+			<mx:CheckBox id="amostraOleoSOSTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Teste de Leakoff">
+			<mx:CheckBox id="testeLeakoffTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Form x="305" y="354" includeInLayout="false" visible="false">
+		<mx:FormItem label="Download Service Report (ET)">
+			<mx:CheckBox id="downloadServiceReportETTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Inspeção de Material Rodante (CTPS)">
+			<mx:CheckBox id="inspecaoMaterialRodanteCTPSTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Relatório de Consumo de Óleo Lubrificante">
+			<mx:CheckBox id="relatorioConsumoOleoLubrificanteTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:VBox  x="109" y="460" id="formGarantiaServico" horizontalAlign="center" visible="false" includeInLayout="false">
+		
+		
+		<mx:Label text="Preenchimento Obrigatório para garantia de Serviço" x="503" y="455"/>
+		<mx:HBox horizontalAlign="center" y="481" x="91">
+			
+			
+			
+			<mx:Form x="32" y="481">
+				<mx:FormItem label="Faltou Ferramenta">
+					<mx:CheckBox id="faltouFerramentoTxt"/>
+				</mx:FormItem>
+				<mx:FormItem label="Consultou ou manual de Serviço">
+					<mx:CheckBox id="consultouManualServicoTxt"/>
+				</mx:FormItem>
+				<mx:FormItem label="O tempo para o reparo foi suficiente">
+					<mx:CheckBox id="tempoReparoSuficienteTxt"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:Form x="309" y="481">
+				<mx:FormItem label="Componente Passou no Teste">
+					<mx:CheckBox id="componentePassouTesteTxt"/>
+				</mx:FormItem>
+				<mx:FormItem label="Recebeu Treinamento">
+					<mx:CheckBox id="recebeuTreinamentoTxt"/>
+				</mx:FormItem>
+				<mx:FormItem label="Recebeu informação completa para o reparo">
+					<mx:CheckBox id="recebeuInformacaoCompletareparoTxt"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:Form x="631" y="481">
+				<mx:FormItem label="A falha foi gerada por diagnóstico incorreto">
+					<mx:CheckBox id="falhaGeradaDiagnosticaoIncorretoTxt"/>
+				</mx:FormItem>
+				<mx:FormItem label="O cliente influenciou na proposta">
+					<mx:CheckBox id="clienteInfluenciouPropostaTxt"/>
+				</mx:FormItem>
+				<mx:FormItem label="Foi consultado o serviço na OS anterior ">
+					<mx:CheckBox id="foiConsultadoServicoOSAnteriorTxt"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:Form x="945" y="481">
+				<mx:FormItem label="Foi cortado peças do orçamento anterior">
+					<mx:CheckBox id="foiCortadoPecaOrcamentoAnteriorTxt"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:Button x="581.5" y="587" label="Salvar" click="button1_clickHandler(event)" id="salvarBtn"/>
+	<mx:Button x="651.5" y="587" label="Aprovar"  click="button2_clickHandler(event)" id="aprovarBtn"/>
+	<mx:Button x="731" y="587" label="Rejeitar"  click="button3_clickHandler(event)" id="rejeitarBtn"/>
+	
+</util:ModuleTitleWindow>

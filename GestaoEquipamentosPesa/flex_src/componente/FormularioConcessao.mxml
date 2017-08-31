@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Solicitação de Abertura de OS de Concessão" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+<mx:Script>
+	<![CDATA[
+		import bean.GeFormularioAprovacaoOsBean;
+		import bean.PecasAprovacaoOSBean;
+		import bean.UsuarioBean;
+		
+		import mx.collections.ArrayCollection;
+		import mx.controls.Alert;
+		import mx.core.IFlexDisplayObject;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		
+		import util.ProgressBarHelper;
+
+		private var idFormulario:Number;
+		private var urlLogin:String;
+		private var usuarioBean:UsuarioBean;
+		
+		private var codigoCliente:String;
+		private var cliente:String;
+		private var tipoSistema:String;
+		private var filialCriacaoOS:String;
+		private var maquinaParou:String;
+		public function init(urlLogin:String, usuarioBean:UsuarioBean, codigoCliente:String, cliente:String, tipoSistema:String, filialCriacaoOS:String, maquinaParou:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.codigoCliente = codigoCliente;
+			this.cliente = cliente;
+			this.tipoSistema = tipoSistema;
+			this.filialCriacaoOS = filialCriacaoOS;
+			this.maquinaParou = maquinaParou;
+			//if(usuarioBean.isAdm == false){
+				aprovarBtn.visible = false;
+				rejeitarBtn.visible = false;
+//				salvarBtn.visible = false;
+//			}
+		}
+		
+		public function init2(urlLogin:String, usuarioBean:UsuarioBean, beanForm:GeFormularioAprovacaoOsBean, isAdm:Boolean, tipoSistema:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.idFormulario = beanForm.id;
+			this.tipoSistema = tipoSistema;
+			if(isAdm == false){
+				aprovarBtn.visible = false;
+				rejeitarBtn.visible = false;
+				salvarBtn.visible = false;
+				//pecasBtn.visible = false;
+			}
+			serviceController.findFormularioAprovarOsById(this.idFormulario);
+		}
+		
+		public function initAprovar(urlLogin:String, usuarioBean:UsuarioBean, beanForm:GeFormularioAprovacaoOsBean, isAdm:Boolean, tipoSistema:String):void{
+			this.aprovacaoOs = beanForm;
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.idFormulario = beanForm.id;
+			this.tipoSistema = tipoSistema;
+			//if(isAdm == false){
+				aprovarBtn.visible = true;
+				rejeitarBtn.visible = true;
+				salvarBtn.visible = false;
+				//pecasBtn.visible = false;
+			//}
+			serviceController.findFormularioAprovarOsById(this.idFormulario);
+		}
+		var aprovacaoOs:GeFormularioAprovacaoOsBean = new GeFormularioAprovacaoOsBean();
+		private function onResultFindFormularioAprovarOs(ev:ResultEvent):void{
+			if(ev.result != null){
+				aprovacaoOs = GeFormularioAprovacaoOsBean(ev.result);
+				if(aprovacaoOs.status == 'Rejeitado'){
+					salvarBtn.visible = true;
+				}
+				this.setBean(aprovacaoOs);
+			}
+		}
+		
+		private function setBean(aprovacaoOs:GeFormularioAprovacaoOsBean):void{
+			aplicationxt.text = aprovacaoOs.aplication;
+			ofCatEquipTxt.text = aprovacaoOs.ofCatEquip;
+			ofNonCatEquipTxt.text = aprovacaoOs.ofNonCatEquip;
+			equipDeliveryDateTxt.text = aprovacaoOs.equipDeliveryDate;
+			anualServiceSpendTxt.text = aprovacaoOs.anualServiceSpend;
+			anualPartsSpendTxt.text = aprovacaoOs.anualPartsSpend;
+			pnCauseFailureTxt.text = aprovacaoOs.pnCauseFailuret;
+			groupCausingFailureTxt.text = aprovacaoOs.groupCausingFailure;
+			machineHoursTxt.text  = aprovacaoOs.machineHours;
+			dateOfFailureTxt.text = aprovacaoOs.dateOfFailure;
+			partHoursTxt.text  = aprovacaoOs.partHours;
+			complaintText.text = aprovacaoOs.complaint;
+			rootCauseTxt.text = aprovacaoOs.rootCauseTxt;
+			repairComplicationsText.text = aprovacaoOs.repairComplications;
+			
+			correctiveActionsTxt.text = aprovacaoOs.correctiveActions;
+			partsCustomerTxt.text = aprovacaoOs.partsCustomer;
+			laborCustomerTxt.text = aprovacaoOs.laborCustomer;
+			miscCustomerTxt.text = aprovacaoOs.miscCustomer;
+			
+			partsDealerTxt.text = aprovacaoOs.partsDealer;
+			laborDealerTxt.text = aprovacaoOs.laborDealer;
+			miscDealerTxt.text = aprovacaoOs.miscDealer;
+			
+			notesTxt.text = aprovacaoOs.notes;
+			justificativaConcessaoTxt.text = aprovacaoOs.justificativaConcessao;
+		
+			modeloTxt.text = aprovacaoOs.modelo;
+			serieTxt.text = aprovacaoOs.serie;
+			clienteTxt.text = aprovacaoOs.clientePesa;
+			this.codigoCliente = aprovacaoOs.codigoCliente;
+			this.cliente = aprovacaoOs.cliente;
+			this.maquinaParou = aprovacaoOs.maquinaParou
+			//aprovacaoOs.idCheckIn = this.idCheckIn;
+			//serviceController.salvarFormularioAprovarOs(aprovacaoOs);
+		}
+		
+		
+		protected function button1_clickHandler(event:MouseEvent):void
+		{
+			
+			if(aplicationxt.text == '' ||
+				ofCatEquipTxt.text == '' ||
+				ofNonCatEquipTxt.text == '' ||
+				equipDeliveryDateTxt.text == '' ||
+				anualServiceSpendTxt.text == '' ||
+				anualPartsSpendTxt.text == '' ||
+				pnCauseFailureTxt.text == '' ||
+				groupCausingFailureTxt.text == '' ||
+				machineHoursTxt.text == '' ||
+				dateOfFailureTxt.text == '' ||
+				partHoursTxt.text == '' ||
+				complaintText.text == '' ||
+				rootCauseTxt.text == '' ||
+				repairComplicationsText.text == '' ||
+				
+				correctiveActionsTxt.text == '' ||
+				partsCustomerTxt.text == '' ||
+				laborCustomerTxt.text == '' ||
+				miscCustomerTxt.text == '' ||
+				
+				partsDealerTxt.text == '' ||
+				laborDealerTxt.text == '' ||
+				miscDealerTxt.text == '' ||
+				
+				notesTxt.text == '' ||
+				justificativaConcessaoTxt.text == '' ||
+				clienteTxt.text == '' ||
+				modeloTxt.text == '' ||
+				serieTxt.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+			if(partsCustomerTxt.text == '0,00'){
+				Alert.show("O preenchimento das peças é obrigatório!", "Alerta");
+				return;
+			}
+			serviceController.validarNumSerieAprovarOs(serieTxt.text);
+		}
+		
+		private function atualizarTotalValor(listPecas:ArrayCollection):void{
+			var clPrice:Number = Number(0);
+			var dnPrice:Number = Number(0);
+			for(var i:int = 0; i < listPecas.length; i++){
+				
+				var pecas:PecasAprovacaoOSBean = PecasAprovacaoOSBean(listPecas.getItemAt(i));
+				
+				
+				
+				var uniteCL:String  = pecas.uniteCl.replace(".","").replace(",",".");
+				var aux:Number = Number(uniteCL) * Number(pecas.qtd);
+				clPrice = clPrice + aux;
+				
+				
+				var uniteRate:String  = pecas.uniteRate.replace(".","").replace(",",".");
+				var aux1:Number = Number(uniteRate) * Number(pecas.qtd);
+				dnPrice = dnPrice + aux1;
+				
+				
+			}
+			partsCustomerTxt.text = MoedaFormatter.format(clPrice);
+			partsDealerTxt.text = MoedaFormatter.format(dnPrice);
+		}
+		
+		private function onResultSalvarFormularioAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				Alert.show("Transação realizada com sucesso!", "Alerta");
+				this.close(null);
+			}else{
+				Alert.show("Não foi possível realizar transação!", "Alerta");
+			}
+		}
+
+		private function onResultAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				Alert.show("Transação realizada com sucesso!", "Alerta");
+				this.close(null);
+			}else{
+				Alert.show("Não foi possível realizar transação!", "Alerta");
+			}
+		}
+
+		protected function button2_clickHandler(event:MouseEvent):void
+		{
+			serviceController.aprovarOs(true,null, this.aprovacaoOs);
+		}
+
+
+		private var popMotivorejeicao:PopupMotivoRejecaoCriacaoOS = new PopupMotivoRejecaoCriacaoOS();
+		protected function button3_clickHandler(event:MouseEvent):void
+		{
+			
+			popMotivorejeicao.addEventListener(CloseEvent.CLOSE, removeoRejeicaoPopUp);
+			PopUpManager.addPopUp(popMotivorejeicao, this, true);
+			PopUpManager.centerPopUp(popMotivorejeicao);
+		}
+		private function removeoRejeicaoPopUp(obj:CloseEvent):void{
+			PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			if(popMotivorejeicao.motivoRejeicaoTxt.text != ''){
+//				if(this.aprovacaoOs.obsRejeicao != null && this.aprovacaoOs.obsRejeicao != ''){
+//					serviceController.aprovarOs(false, aprovacaoOs.obsRejeicao+'\n'+popMotivorejeicao.motivoRejeicaoTxt.text, this.aprovacaoOs);
+//				}else{
+					serviceController.aprovarOs(false, popMotivorejeicao.motivoRejeicaoTxt.text, this.aprovacaoOs);
+				//}
+			}
+		}
+
+		private var popPecasAprovarOs:PopupPecasAprovacao = new PopupPecasAprovacao();	
+		protected function salvarBtn0_clickHandler(event:MouseEvent):void
+		{
+						
+			popPecasAprovarOs.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+			PopUpManager.addPopUp(popPecasAprovarOs, this, true);
+			PopUpManager.centerPopUp(popPecasAprovarOs);
+			popPecasAprovarOs.init(aprovacaoOs.listaPecasAprovacao);	
+		}
+		private function removeoAprovarPopUp(obj:CloseEvent):void{
+			PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			aprovacaoOs.listaPecasAprovacao = popPecasAprovarOs.listaPecas;
+			this.atualizarTotalValor(aprovacaoOs.listaPecasAprovacao);
+		}
+		private function onResultValidarNumSerieAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				aprovacaoOs.aplication = aplicationxt.text;
+				aprovacaoOs.ofCatEquip = ofCatEquipTxt.text;
+				aprovacaoOs.ofNonCatEquip = ofNonCatEquipTxt.text;
+				aprovacaoOs.equipDeliveryDate = equipDeliveryDateTxt.text;
+				aprovacaoOs.anualServiceSpend = anualServiceSpendTxt.text;
+				aprovacaoOs.anualPartsSpend = anualPartsSpendTxt.text;
+				aprovacaoOs.pnCauseFailuret = pnCauseFailureTxt.text;
+				aprovacaoOs.groupCausingFailure = groupCausingFailureTxt.text;
+				aprovacaoOs.machineHours = machineHoursTxt.text;
+				aprovacaoOs.dateOfFailure = dateOfFailureTxt.text;
+				aprovacaoOs.partHours = partHoursTxt.text;
+				aprovacaoOs.complaint = complaintText.text;
+				aprovacaoOs.rootCauseTxt = rootCauseTxt.text;
+				aprovacaoOs.repairComplications = repairComplicationsText.text;
+				
+				aprovacaoOs.correctiveActions = correctiveActionsTxt.text;
+				aprovacaoOs.partsCustomer = partsCustomerTxt.text;
+				aprovacaoOs.laborCustomer = laborCustomerTxt.text;
+				aprovacaoOs.miscCustomer = miscCustomerTxt.text;
+				
+				aprovacaoOs.partsDealer = partsDealerTxt.text;
+				aprovacaoOs.laborDealer = laborDealerTxt.text;
+				aprovacaoOs.miscDealer = miscDealerTxt.text;
+				
+				aprovacaoOs.notes = notesTxt.text;
+				aprovacaoOs.obsRejeicao = notesTxt.text;
+				aprovacaoOs.justificativaConcessao = justificativaConcessaoTxt.text;
+				
+				aprovacaoOs.modelo = modeloTxt.text;
+				aprovacaoOs.serie = serieTxt.text;
+				aprovacaoOs.codigoCliente = this.codigoCliente;
+				aprovacaoOs.clientePesa = clienteTxt.text;
+				aprovacaoOs.cliente = this.cliente;
+				aprovacaoOs.tipoSolicitacao = 'C';
+				aprovacaoOs.tipoSistema = this.tipoSistema;
+				aprovacaoOs.filialCriacaoOS = this.filialCriacaoOS;
+				aprovacaoOs.maquinaParou = this.maquinaParou;
+				serviceController.salvarFormularioAprovarOs(aprovacaoOs);
+			}else{
+				Alert.show("O número de série não é válido!", "Alerta");
+			}
+		}
+	]]>
+</mx:Script>
+	<mx:CurrencyFormatter id="MoedaFormatter" precision="2" 
+						  currencySymbol="" decimalSeparatorTo="," decimalSeparatorFrom=","  thousandsSeparatorFrom="." thousandsSeparatorTo="."/>
+<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+	<mx:method name="salvarFormularioAprovarOs" result="onResultSalvarFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="aprovarOs" result="onResultAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="findFormularioAprovarOsById" result="onResultFindFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="validarNumSerieAprovarOs" result="onResultValidarNumSerieAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+</mx:RemoteObject>
+
+	<mx:Form x="27" y="26">
+		<mx:FormItem label="Cliente">
+			<mx:TextInput id="clienteTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Série">
+			<mx:TextInput id="serieTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Modelo">
+			<mx:TextInput id="modeloTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Aplicação">
+			<mx:TextInput id="aplicationxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Equip. CAT">
+			<mx:TextInput id="ofCatEquipTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Label text="Informação de Cliente" x="27" y="200"/>
+	<mx:Label text="Total Lista Cliente" x="27" y="337"/>
+	<mx:Label text="Total Dealer Net" x="330" y="337"/>
+	<mx:Label text="Causa Raiz" x="357" y="200"/>
+	<mx:Form x="377" y="26">
+		<mx:FormItem label="Equip. não CAT">
+			<mx:TextInput id="ofNonCatEquipTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Data Entrega Equip.">
+			<mx:DateField x="134.5" y="50" id="equipDeliveryDateTxt" formatString="DD/MM/YYYY" width="103" dayNames="{new Array('D','S','T','Q','Q','S','S')}" monthNames="{new Array('JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO') }"/>
+		</mx:FormItem>
+		<mx:FormItem label="Venda de Serviço Anual">
+			<control:DecimalInput id="anualServiceSpendTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Venda de Peça Anual">
+			<control:DecimalInput id="anualPartsSpendTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Nr. Peça Causadora da Falha">
+			<mx:TextInput id="pnCauseFailureTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Form x="796" y="26">
+		<mx:FormItem label="Nr. do Grupo">
+			<mx:TextInput id="groupCausingFailureTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Máquina Horas">
+			<mx:TextInput id="machineHoursTxt" restrict="[0-9]"/>
+		</mx:FormItem>
+		<mx:FormItem label="Data da Falha">
+			<mx:DateField x="134.5" y="50" id="dateOfFailureTxt" formatString="DD/MM/YYYY" width="103" dayNames="{new Array('D','S','T','Q','Q','S','S')}" monthNames="{new Array('JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO') }"/>
+		</mx:FormItem>
+		<mx:FormItem label="Horas Peça">
+			<mx:TextInput id="partHoursTxt" restrict="[0-9]"/>
+		</mx:FormItem>
+		<!--mx:FormItem label="Complaint">
+			<mx:TextInput id="complaintTxt"/>
+		</mx:FormItem-->
+	</mx:Form>
+	<mx:TextArea x="27" y="226" width="323" height="103" id="complaintText"/>
+	<mx:TextArea x="357" y="226" width="323" height="103" id="rootCauseTxt"/>
+	<mx:Label text="Reparo Complicado" x="688" y="200"/>
+	<mx:TextArea x="688" y="226" width="323" height="103" id="repairComplicationsText"/>
+	<mx:Label text="Ação Corretiva" x="1021" y="200"/>
+	<mx:TextArea x="1020" y="226" width="323" height="103" id="correctiveActionsTxt"/>
+	<mx:Label text="Observações" x="657" y="337"/>
+	<mx:TextArea x="657" y="363" width="323" height="110" id="notesTxt"/>
+	<mx:Label text="Justificativa da Concessão" x="1025" y="337"/>
+	<mx:TextArea x="1025" y="363" width="323" height="110" id="justificativaConcessaoTxt"/>
+	<mx:Form x="27" y="363">
+		<mx:FormItem label="Peça">
+			<control:DecimalInput editable="true" id="partsCustomerTxt" width="93" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Mão de Obra">
+			<control:DecimalInput editable="true" id="laborCustomerTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Misc.">
+			<control:DecimalInput editable="true" id="miscCustomerTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Button x="581.5" y="547" label="Salvar" click="button1_clickHandler(event)" id="salvarBtn"/>
+	<mx:Button x="662.5" y="501" label="Peças"  id="pecasBtn" click="salvarBtn0_clickHandler(event)"/>
+	<mx:Button x="651.5" y="547" label="Aprovar"  click="button2_clickHandler(event)" id="aprovarBtn"/>
+	<mx:Button x="731" y="547" label="Rejeitar"  click="button3_clickHandler(event)" id="rejeitarBtn"/>
+	<mx:Form x="335.5" y="363">
+		<mx:FormItem label="Peça">
+			<control:DecimalInput id="partsDealerTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Mão de Obra">
+			<control:DecimalInput id="laborDealerTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Misc.">
+			<control:DecimalInput id="miscDealerTxt" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+</util:ModuleTitleWindow>

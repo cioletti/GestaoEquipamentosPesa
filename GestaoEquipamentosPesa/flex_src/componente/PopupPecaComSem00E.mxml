@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Peça Com ou Sem 00E" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="196">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			private var urlLogin:String;
+			private var idSegmento:Number;
+			private var hasSendDbs:String;
+			private var usuarioBean:UsuarioBean;
+			private var checkInObj:CheckinBean = new CheckinBean();
+			private var segmentoBean:SegmentoBean = new SegmentoBean();
+			private var pecas:Pecas;
+			private var pecasSem00E:PecasSem00E;
+			
+			public function init(urlLogin:String, idSegmento:Number, hasSendDbs:String, hasSendPecasDbsSegmento:String, checkInObj:CheckinBean, _usuarioBean:UsuarioBean, segmentoBean:SegmentoBean):void{
+				this.urlLogin = urlLogin;
+				this.idSegmento = idSegmento;
+				this.hasSendDbs = hasSendDbs;
+				this.usuarioBean = _usuarioBean;
+				this.checkInObj = checkInObj;
+				this.segmentoBean = segmentoBean;
+				if((checkInObj != null) && (checkInObj.statusNegociacaoConsultor == 'A' || checkInObj.statusNegociacaoConsultor == 'R')){
+					pecasSem00EBtn.visible = false;
+				}
+			}
+			
+			protected function sem00E_clickHandler(event:MouseEvent):void
+			{
+				pecasSem00E = new PecasSem00E();
+				//SegmentoBean(segmentoGrid.selectedItem);
+				pecasSem00E.addEventListener(CloseEvent.CLOSE,removePopUpPecas );
+				PopUpManager.addPopUp(pecasSem00E,this,true);
+				PopUpManager.centerPopUp(pecasSem00E);
+				pecasSem00E.init(urlLogin, this.segmentoBean.id, checkInObj.hasSendDbs, checkInObj.hasSendPecasDbs, checkInObj, usuarioBean, this.segmentoBean );
+			}
+
+			protected function com00E_clickHandler(event:MouseEvent):void
+			{
+				pecas = new Pecas();
+				//SegmentoBean(segmentoGrid.selectedItem);
+				pecas.addEventListener(CloseEvent.CLOSE,removePopUpPecas );
+				PopUpManager.addPopUp(pecas,this,true);
+				PopUpManager.centerPopUp(pecas);
+				pecas.init(urlLogin, this.segmentoBean.id, checkInObj.hasSendDbs, checkInObj.hasSendPecasDbs, checkInObj, usuarioBean, this.segmentoBean );						
+			}
+			
+			private function removePopUpPecas(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+
+		]]>
+	</mx:Script>
+
+	<mx:Button label="Peças com 00E" height="20"  x="64.5" y="60" click="com00E_clickHandler(event)"/>
+	<mx:Button label="Peças sem 00E" id="pecasSem00EBtn" height="20"  x="196.5" y="60" click="sem00E_clickHandler(event)"/>
+	
+</util:ModuleTitleWindow>

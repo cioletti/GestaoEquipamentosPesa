@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" title="Detalhes da Liberação" layout="absolute" width="848" height="640">
+	<mx:Script>
+		<![CDATA[
+			import bean.SegmentoBean;
+			import bean.ServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			public var click:Boolean = false;
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione o Arquivo(*.pdf;)", "*.pdf;");
+			private var servTerc:ServicoTerceirosBean;
+			private var urlLogin:String;
+			private var urlReport:String;
+			public function init(servTerc:ServicoTerceirosBean, urlLogin:String, urlReport:String):void{
+				this.urlLogin = urlLogin;
+				this.urlReport = urlReport;
+				this.servTerc = servTerc;
+				serviceController.recuperarNomeArquivo(servTerc);
+				filialText.text = this.servTerc.nomeFilial;
+				fornecedorText.text = this.servTerc.descricaoFornecedor;
+				codigoFornecedorText.text = this.servTerc.codigoFornecedor;
+				cnpjFornecedorText.text = this.servTerc.cnpj;
+				naturezaNFText.text = this.servTerc.naturezaOperacao;
+				obsTextAreaMetrologia.text = this.servTerc.obsEnvioNotaFiscal;
+				numeOsText.text = this.servTerc.numeroOs;
+			}
+			
+			
+			//Métodos de UPLOAD
+			/**
+			 * @private
+			 * Chamado quando o botao de adicinar arquivor for clicado.
+			 */
+			private function adicionarArquivoNotaFiscal():void {
+				
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivoNotaFiscal);
+			}
+			
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoNotaFiscal(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				serviceController.fazerUploadEmDiretorioNotaFiscal(this.servTerc, data, uploadFile.name);
+			}
+
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente liberar o serviço de terceiros para recepção?", "Alerta", 3, this, alertClickHandlerAprovarServTerceiros);				
+			}
+			
+			private function alertClickHandlerAprovarServTerceiros(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.ok();
+				}
+			}
+			protected function ok():void
+			{
+				if(obsTextArea.text == ""){
+					Alert.show("O campo observação é obrigatório!", "Alerta");
+					return;
+				}
+				if(nomeNotaFiscal.text == ""){
+					Alert.show("Não existe nota fiscal anexada!", "Alerta");
+					return;
+				}
+				click = true;
+				this.close();
+			}
+			
+			private function onResultUploadSucesso(event:ResultEvent):void {
+				if(Boolean(event.result)){
+					nomeNotaFiscal.text = uploadFile.name;
+					this.buttonNF();
+					Alert.show("NF anexada com sucesso!", "Sucesso!");
+					return;
+				}
+				Alert.show("Ocorreu um erro ao anexar NF!", "Alerta!");
+			}
+			private function onResulRrecuperarArquivo(event:ResultEvent):void {
+				nomeNotaFiscal.text = String(event.result);
+				serviceController.recuperarItensServTerc(this.servTerc);
+				this.buttonNF();
+			}
+			
+			private function buttonNF():void{
+				if(nomeNotaFiscal.text.length > 1){
+					nfButton.visible = true;
+				}else{
+					nfButton.visible = false;
+				}
+			}
+
+
+			protected function nfButton_clickHandler(event:MouseEvent):void
+			{
+				var uv:URLVariables = new URLVariables();
+				uv.idSituacaoServTerc = this.servTerc.id;	
+				var url:URLRequest = new URLRequest("VisualizarNF");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			private function onResulRecuperarItensServTerc(event:ResultEvent):void {
+				gridItens.dataProvider = ArrayCollection(event.result);
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="fazerUploadEmDiretorioNotaFiscal" result="onResultUploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="recuperarNomeArquivo" result="onResulRrecuperarArquivo(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="recuperarItensServTerc" result="onResulRecuperarItensServTerc(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:Button x="333.5" y="555" label="Enviar para Recepção" click="button1_clickHandler(event)"/>
+	<mx:TextArea x="57" y="333" width="352" height="204" id="obsTextArea"/>
+	<mx:TextArea x="467" y="333" width="304" height="111" id="obsTextAreaMetrologia" editable="false"/>
+	<mx:Label x="480.5" y="452" text="Nota Fiscal"/>
+	<mx:Label x="57" y="18" text="Filial Solicitante"/>
+	<mx:Label x="178" y="18" text="Filial" id="filialText"/>
+	<mx:Label x="57" y="64" text="Fornecedor"/>
+	<mx:Label x="57" y="42" text="Numero OS"/>
+	<mx:Label x="178" y="42" text="Numero OS" id="numeOsText"/>
+	<mx:Label x="178" y="64" text="Fornecedor" id="fornecedorText"/>
+	<mx:Label x="57" y="90" text="Código fornecedor"/>
+	<mx:Label x="178" y="90" text="Código Fornecedor" id="codigoFornecedorText"/>
+	<mx:Label x="57" y="116" text="CPJ fornecedor"/>
+	<mx:Label x="57" y="142" text="Natureza NF"/>
+	<mx:Label x="57" y="168" text="Itens"/>
+	<mx:Label x="178" y="142" text="Natureza NF" id="naturezaNFText"/>
+	<mx:Label x="178" y="116" text="CNPJ Fornecedor" id="cnpjFornecedorText"/>
+	<mx:Label x="57" y="311" text="Observações"/>
+	<mx:Label x="466" y="311" text="Observações Metrologia"/>
+	<mx:Label x="480.5" y="479" text="" id="nomeNotaFiscal"/>
+	<mx:Button x="480.5" y="511" label="Anexar NF" click="adicionarArquivoNotaFiscal()"/>
+	<mx:Button x="587" y="491" label="Visualizar NF" id="nfButton" click="nfButton_clickHandler(event)" visible="false"/>
+	<mx:DataGrid x="57" y="191" id="gridItens" height="112" width="713">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Código" dataField="codigo"/>
+			<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Qtd" dataField="qtd"/>
+			<mx:DataGridColumn headerText="Valor Unitário" dataField="valor"/>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</util:ModuleTitleWindow>

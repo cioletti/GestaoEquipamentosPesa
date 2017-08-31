@@ -1,0 +1,35 @@
+package com.gestaoequipamentos.util;
+
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+
+
+public class Connection {
+	//static String URL = "jdbc:oracle:thin:@oracle-rdr.no-ip.org:1522:marcosa";
+	static String URLRM1 = "jdbc:oracle:thin:@marcosa-rac01-vip:1521/marcosa_taf";
+	static String URLRM2 = "jdbc:oracle:thin:@marcosa-rac02-vip:1521/marcosa_taf";
+//	static String URLRM1 = "jdbc:oracle:thin:@192.168.0.100:1522/marcosa";
+//	static String URLRM2 = "jdbc:oracle:thin:@192.168.0.100:1522/marcosa";
+	//static String URL = "jdbc:mysql://gordiano.ddns.com.br:3306/marcosa?autoReconnect=true";
+	public static java.sql.Connection getConnection(){
+		java.sql.Connection conexao;
+		try {
+			// Carregando o Driver
+			Class.forName("oracle.jdbc.OracleDriver");
+			// Efetuando a Conexao
+			conexao = DriverManager.getConnection(URLRM1, "DS", "DSP455");
+			if(conexao == null){
+				conexao = DriverManager.getConnection(URLRM2, "DS", "DSP455");
+			}
+			conexao.setAutoCommit(false);
+			return conexao;
+		} catch (ClassNotFoundException objErroDriver) {
+			objErroDriver.printStackTrace();
+		}
+		catch (SQLException objErroConexao) {
+			objErroConexao.printStackTrace();
+		}
+		return null;
+	}
+}

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.GeFormularioAprovacaoOsBean;
+			import bean.UsuarioBean;
+			
+			import com.google.maps.services.ServiceStatus;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var usuarioBean:UsuarioBean;
+			
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{
+				this.usuarioBean = usuarioBean;
+				serviceController.findFormularioAprovarOsCustomizacao(campoPesquisa.text);
+				
+				formulario.addEventListener("VISUALIZAR", visualizarSolicitacao);
+			}
+			
+			private function visualizarSolicitacao(ev: Event): void{
+				var beanForm:GeFormularioAprovacaoOsBean = GeFormularioAprovacaoOsBean(formulario.selectedItem);
+//				if(beanForm.tipoSolicitacao == 'G'){
+//					var popUpAprovarOs:FormularioGarantia = new FormularioGarantia();				
+//					popUpAprovarOs.addEventListener(CloseEvent.CLOSE, removeoPopUp);
+//					PopUpManager.addPopUp(popUpAprovarOs, this, true);
+//					PopUpManager.centerPopUp(popUpAprovarOs);
+//					popUpAprovarOs.initAprovar(urlLogin,this.usuarioBean, beanForm.id, false);
+//				}
+				if(beanForm.tipoSolicitacao == 'C'){
+					var popUpFormConOs:FormularioConcessao = new FormularioConcessao();				
+					popUpFormConOs.addEventListener(CloseEvent.CLOSE, removeoPopUp);
+					PopUpManager.addPopUp(popUpFormConOs, this, true);
+					PopUpManager.centerPopUp(popUpFormConOs);
+					popUpFormConOs.initAprovar(urlLogin,this.usuarioBean, beanForm, false, beanForm.tipoSistema);
+				}
+				if(beanForm.tipoSolicitacao == 'R' || beanForm.tipoSolicitacao == 'E' || beanForm.tipoSolicitacao == 'GG' || beanForm.tipoSolicitacao == 'CC'){
+					var popUpFormRent:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+					popUpFormRent.addEventListener(CloseEvent.CLOSE, removeoPopUp);
+					PopUpManager.addPopUp(popUpFormRent, this, true);
+					PopUpManager.centerPopUp(popUpFormRent);
+					popUpFormRent.initAprovar(urlLogin,this.usuarioBean, beanForm, false, beanForm.tipoSistema, beanForm.tipoSolicitacao);
+				}
+			}
+			
+			private function removeoPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findFormularioAprovarOsCustomizacao(campoPesquisa.text);
+			}
+			private function onResultFindFormularioAprovarOs(ev:ResultEvent):void{
+				formulario.dataProvider = ArrayCollection(ev.result);
+				
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var popUpAprovarOs:PopupSolicitarCriacaoOS = new PopupSolicitarCriacaoOS();				
+				popUpAprovarOs.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+				PopUpManager.addPopUp(popUpAprovarOs, this, true);
+				PopUpManager.centerPopUp(popUpAprovarOs);
+				popUpAprovarOs.init(urlLogin, this.usuarioBean);	
+			}
+			
+			private function removeoAprovarPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findFormularioAprovarOsCustomizacao(campoPesquisa.text);
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				serviceController.findFormularioAprovarOsCustomizacao(campoPesquisa.text);
+			}
+
+		]]>
+	</mx:Script>
+
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findFormularioAprovarOsCustomizacao" result="onResultFindFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+		<mx:Label text="Solicitar Criação de OS Customização" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="67" width="100%" height="100%" id="formulario">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Código Solicitação" dataField="id"/>
+			<mx:DataGridColumn headerText="Responsável" dataField="responsavel"/>
+			<mx:DataGridColumn headerText="Código Cliente" dataField="codigoCliente"/>
+			<mx:DataGridColumn headerText="Cliente" dataField="cliente"/>
+			<mx:DataGridColumn headerText="Série" dataField="serie"/>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Filial Criação OS" dataField="nomeFilial"/>
+			<mx:DataGridColumn headerText="Status" dataField="status"/>
+			<mx:DataGridColumn headerText="Sistema" dataField="tipoSistema"/>
+			<mx:DataGridColumn headerText="Visualizar">
+			<mx:itemRenderer>
+				<mx:Component>
+					<mx:VBox verticalGap="2" horizontalAlign="center">
+						<mx:Image source="img/information.png" width="15" buttonMode="true" height="15" toolTip="Clique para: Visualizar Solicitação." click="{dispatchEvent(new Event('VISUALIZAR', true)) }" />
+					</mx:VBox>
+				</mx:Component> 	
+			</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:Button x="222" y="38" label="Pesquisar" click="button2_clickHandler(event)"/>
+	<mx:TextInput x="22" y="38" id="campoPesquisa" toolTip="Insira o código do cliente, cliente ou série."/>
+	<mx:Button x="338" y="38" visible="false" label="Solicitar Criar OS" click="button1_clickHandler(event)"/>
+	
+</mx:Canvas>

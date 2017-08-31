@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Data Conclusão" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var idCheckin:Number;
+			public var hasDataConclusao:String = "N";
+			
+			public function init(urlLogin:String, idCheckin:Number):void{
+				this.urlLogin = urlLogin;
+				this.idCheckin = idCheckin;
+			}
+			private function saveDataPrevisao():void{
+				if(dataPrevisao.selectedDate != null){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("Deseja realmente finalizar a OS?", "Alerta", 3, this, alertClickHandler);				
+				}else{
+					Alert.show("Por favor escolha uma data", "Alerta!");
+				}	
+			}
+			private function alertClickHandler(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {		// (event.detail==Alert.YES)	
+					serviceController.saveDataConclusao(idCheckin, dataPrevisao.selectedDate);						
+				}else{				
+					return;
+				}			
+			}				
+			private function onResultSaveDataConclusao(event:ResultEvent):void{
+				if(event.result != false){
+					Alert.show("Data salva com sucesso", "Alerta");	
+					hasDataConclusao = "S";
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao tentar salvar a data","Alerta");
+				}
+			}
+			private function onResultFindAllChekin(event:ResultEvent):void {	
+				var che:ArrayCollection = ArrayCollection(event.result);
+				
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="saveDataConclusao" result="onResultSaveDataConclusao(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllChekin" result="onResultFindAllChekin(event);ProgressBarHelper.removeProgressBar()"/>
+		<!--<mx:method name="findDataConclusao" result="onResultFindDataconclusao(event);ProgressBarHelper.removeProgressBar()"/>-->
+		
+	</mx:RemoteObject>
+	<mx:Text x="95.5" y="51" text="Data"/>
+	<mx:Button x="145" y="114" label="Salvar" click="saveDataPrevisao()" />
+	<mx:DateField x="134.5" y="50" id="dataPrevisao" formatString="DD/MM/YYYY" width="103" dayNames="{new Array('S','T','Q','Q','S','S','D')}" monthNames="{new Array('JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO') }"/>
+	
+	
+	
+	
+</util:ModuleTitleWindow>

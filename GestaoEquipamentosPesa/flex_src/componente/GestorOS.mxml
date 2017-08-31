@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.GestorOSBean;
+			import bean.PrefixoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var myValidators: Array;
+			private var prefixoBean: PrefixoBean = new PrefixoBean();
+			private var gestorOS: GestorOSBean = new GestorOSBean();
+			private	var popUpRejeitarOS:PopUpRejeitarOS;
+			private var urlLogin:String;
+			private var urlReport:String;
+			
+			public function init(urlLogin:String, siglaPerfil:String): void{
+				this.urlLogin = urlLogin;
+				gridGestor.addEventListener("LIBERAROS", liberarOS);
+				gridGestor.addEventListener("REJEITAROS", rejeitarOS);
+				gridGestor.addEventListener("IMPRIMERELATORIO", gerarRelatorio);
+				if(siglaPerfil == 'GOS'){
+					serviceController.findAllOSGestor();
+				}else{
+					serviceController.findAllOSGarantiaGestor();
+				}
+			}
+			public function liberarOS(ev: Event):void{				
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente liberar a OS?", "Alerta", 3, this, alertClickHandlerLiberarOS);				
+			}
+			private function alertClickHandlerLiberarOS(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {						
+					serviceController.liberarOS(GestorOSBean(gridGestor.selectedItem).numOS);
+				}else{
+					return;
+				}	
+			}
+			public function rejeitarOS(ev: Event):void{
+				gestorOS = GestorOSBean(gridGestor.selectedItem);
+				popUpRejeitarOS = new PopUpRejeitarOS();
+				popUpRejeitarOS.addEventListener(CloseEvent.CLOSE, removePopUpRejeitarOS);
+				PopUpManager.addPopUp(popUpRejeitarOS,this,true);
+				PopUpManager.centerPopUp(popUpRejeitarOS)					
+				popUpRejeitarOS.init(urlLogin,GestorOSBean(gridGestor.selectedItem).numOS,gestorOS);					
+							
+			}
+			private function removePopUpRejeitarOS(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllOSGestor();				
+			}
+			private function gerarRelatorio(ev:Event):void{
+				var uv:URLVariables = new URLVariables();
+				uv.idChechIn = GestorOSBean(gridGestor.selectedItem).idCheckin;
+				uv.codCliente = GestorOSBean(gridGestor.selectedItem).codCliente;				
+				var url:URLRequest = new URLRequest(urlReport+"/PropostaManutencao");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			public function onResultFindAllOSGestor(event:ResultEvent):void{
+				gridGestor.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+			public function onResultLiberarOS(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("OS liberada com sucesso!", "Alerta");					
+				}else{
+					Alert.show("Ocorreu um erro ao tentar liberar a OS!", "Alerta");
+				}
+				serviceController.findAllOSGestor();
+			}			
+			
+			
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllOSGestor" result="onResultFindAllOSGestor(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findAllOSGarantiaGestor" result="onResultFindAllOSGestor(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="liberarOS" result="onResultLiberarOS(event);ProgressBarHelper.removeProgressBar()"/>		
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Gestor OS" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="58" width="100%" height="590" id="gridGestor">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Cliente" dataField="cliente"/>
+			<mx:DataGridColumn headerText="Numero OS" dataField="numOS"/>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Série" dataField="serie"/>
+			<mx:DataGridColumn headerText="Filial" dataField="filial"/>
+			<mx:DataGridColumn headerText="Liberar OS">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/confirm.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('LIBERAROS', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Rejeitar OS">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/reject.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('REJEITAROS', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>	
+			<mx:DataGridColumn headerText="Imprimir Relatório">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/contrato.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('IMPRIMERELATORIO', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>	
+		</mx:columns>
+	</mx:DataGrid>	
+</mx:Canvas>

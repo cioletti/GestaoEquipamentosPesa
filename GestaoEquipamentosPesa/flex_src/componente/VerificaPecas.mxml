@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Verificar Peças" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1100" height="400">
+	<mx:Script>
+		
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.GeDocSegOperBean;
+			import bean.JobCodeBean;
+			import bean.JobControlBean;
+			import bean.PecasBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;			
+			public var cptcd:popUpCptcd;
+			public var operacao:CriarOperacao;
+			private var pecas:PecasSem00ERennviarDbs;
+			private var numeroOs:String;			
+			public var checkInObj:CheckinBean;
+			public var idCheckin:Number;		
+			private var usuarioBean:UsuarioBean;
+						
+			public function init(urlLogin:String, idCheckin:Number, usuarioBean:UsuarioBean):void{							
+				this.idCheckin = idCheckin;
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;
+				serviceController.verificaPecas(idCheckin);
+				vpGrid.addEventListener("PECAS", reevPecas);
+			}
+			
+			public function onResultVerificaPecas(event:ResultEvent):void{
+				vpGrid.dataProvider = event.result;
+			}
+			private function removePopUpOperacao(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+
+			private function enviarPecas():void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente enviar para o DBS?", "Alerta", 3, this, alertClickHandler);				
+			}			
+			private function alertClickHandler(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {				
+					checkInObj.hasSendDbs = 'S';
+					serviceController.saveOrcamento(checkInObj);
+				}else{					
+					
+					return;
+				}			
+			}
+				
+			private function onResultsaveErro (event:ResultEvent):void{
+				if(Boolean(event.result) == false){
+					Alert.show("Erro ao verificar peças!", "Alerta");
+					return;
+				}		
+				
+			}	
+			private function reevPecas(ev: Event):void{
+				if(GeDocSegOperBean(vpGrid.selectedItem).status != "ok" && (GeDocSegOperBean(vpGrid.selectedItem).codErroDbs == '99')){
+					pecas = new PecasSem00ERennviarDbs();
+					GeDocSegOperBean(vpGrid.selectedItem);
+					pecas.addEventListener(CloseEvent.CLOSE,removePopUpPecas );
+					PopUpManager.addPopUp(pecas,this,true);
+					PopUpManager.centerPopUp(pecas)
+					pecas.init2(urlLogin, GeDocSegOperBean(vpGrid.selectedItem), GeDocSegOperBean(vpGrid.selectedItem).idSegmento, usuarioBean);
+				}if(GeDocSegOperBean(vpGrid.selectedItem).status == "ok"){
+					Alert.show("Não é permitido reenviar peças com status ok", "Alerta");
+					return;
+				}
+				if(GeDocSegOperBean(vpGrid.selectedItem).msgDbs == null){
+					Alert.show("Aguardando o envio de peças para o DBS", "Alerta");
+					return;
+				}
+			}
+			private function removePopUpPecas(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(pecas.pecasGrid.dataProvider != null && ArrayCollection(pecas.pecasGrid.dataProvider).length>0){
+					pecas.verificarpecas.id = PecasBean(ArrayCollection(pecas.pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;
+					if(pecas.isSave == true){
+						serviceController.saveSegundoOrcamento(pecas.verificarpecas);
+					}
+				this.close();
+				}
+			}
+			private function onResultsaveSegundoOrcamento(event:ResultEvent):void{
+				if (event.result != null){
+					Alert.show("Peças salva com sucesso!", "Sucesso");
+					this.close();					
+				}else{
+					Alert.show("Não foi possível salvar peças!", "Erro");
+				}
+				
+			}
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="verificaPecas" result="onResultVerificaPecas(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="saveSegundoOrcamento" result="onResultsaveSegundoOrcamento(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="SegmentoCanvas" backgroundColor="white">
+		<mx:HBox x="0" y="88" width="100%" height="100%">
+		</mx:HBox>
+		<mx:DataGrid width="1072" id="vpGrid" height="100%" x="0" y="0" >
+			<mx:columns>
+				<mx:DataGridColumn headerText="Segmento" dataField="descSegmento"/>
+				<mx:DataGridColumn headerText="Operação" dataField="descOperacao"/>
+				<mx:DataGridColumn headerText="Num.Docto" dataField="numDoc"/>
+				<mx:DataGridColumn headerText="Msg. DBS" dataField="msgDbs"/>
+				<mx:DataGridColumn headerText="Status" dataField="status">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="left" horizontalGap="2">
+								<mx:Image source="{data.statusUrlImage}" horizontalAlign="center" width="15" buttonMode="true" height="15"/>
+								<mx:Label text="{data.status}"/>								
+							</mx:HBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="Reenviar Peças" dataField="reevPecas">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/send.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('PECAS', true)) }" />
+								</mx:VBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:Canvas>
+</util:ModuleTitleWindow>

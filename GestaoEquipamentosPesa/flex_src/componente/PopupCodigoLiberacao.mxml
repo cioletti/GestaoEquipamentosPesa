@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Código Liberação OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1120" height="528">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.GeFormularioAprovacaoOsBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+
+			public var codigoLib:String;
+			public var urlLogin:String;
+			public var serie:String;
+			public var codigoCliente:String;
+			public var usuarioBean:UsuarioBean;
+			
+			public function init(usuarioBean:UsuarioBean, urlLogin:String, serie:String, codigoCliente:String, codigoClienteInter:String):void{
+				this.usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin; 
+				this.serie = serie;
+				this.codigoCliente = codigoClienteInter;
+				serviceController.findFormularioAprovarRecepcaoOs(serie, codigoCliente);
+				formulario.addEventListener("VISUALIZAR", visualizarSolicitacao);
+			}
+			
+			public function initExterno(usuarioBean:UsuarioBean, urlLogin:String, serie:String, codigoCliente:String):void{
+				this.usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin; 
+				this.serie = serie;
+				this.codigoCliente = codigoCliente;
+				serviceController.findFormularioAprovarRecepcaoOs(serie, codigoCliente);
+				formulario.addEventListener("VISUALIZAR", visualizarSolicitacao);
+			}
+			
+			private function visualizarSolicitacao(ev: Event): void{
+				var beanForm:GeFormularioAprovacaoOsBean = GeFormularioAprovacaoOsBean(formulario.selectedItem);
+				if(beanForm.tipoSolicitacao == 'G'){
+					var popUpAprovarOs:FormularioGarantia = new FormularioGarantia();				
+					popUpAprovarOs.addEventListener(CloseEvent.CLOSE, removeoPopUp);
+					PopUpManager.addPopUp(popUpAprovarOs, this, true);
+					//PopUpManager.centerPopUp(popUpAprovarOs);
+					popUpAprovarOs.init2(urlLogin,this.usuarioBean, beanForm, false, beanForm.tipoSistema);
+				}
+				if(beanForm.tipoSolicitacao == 'C'){
+					var popUpFormConOs:FormularioConcessao = new FormularioConcessao();				
+					popUpFormConOs.addEventListener(CloseEvent.CLOSE, removeoPopUp);
+					PopUpManager.addPopUp(popUpFormConOs, this, true);
+					//PopUpManager.centerPopUp(popUpFormConOs);
+					popUpFormConOs.init2(urlLogin,this.usuarioBean, beanForm, false, beanForm.tipoSistema);
+				}
+				if(beanForm.tipoSolicitacao == 'R' || beanForm.tipoSolicitacao == 'E'){
+					var popUpFormRent:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+					popUpFormRent.addEventListener(CloseEvent.CLOSE, removeoPopUp);
+					PopUpManager.addPopUp(popUpFormRent, this, true);
+					//PopUpManager.centerPopUp(popUpFormRent);
+					popUpFormRent.init2(urlLogin,this.usuarioBean, beanForm, false, beanForm.tipoSistema);
+				}
+			}
+			private function removeoPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			
+			protected function button1_clickHandler():void
+			{
+				var geFormulario:GeFormularioAprovacaoOsBean = GeFormularioAprovacaoOsBean(formulario.selectedItem);
+				serviceController.findCodigoLiberacao(geFormulario.id, geFormulario.serie, geFormulario.codigoCliente);
+
+			}
+			protected function onResultFindCodigoLiberacao(ev:ResultEvent):void{
+				if(Boolean(ev.result) == true){
+					var geFormulario:GeFormularioAprovacaoOsBean = GeFormularioAprovacaoOsBean(formulario.selectedItem);
+					codigoLib = String(geFormulario.id);
+					this.close();
+					return;
+				}
+				Alert.show("Não é possível utilizar esse código!", "Alerta");
+				codigoLib == null;
+			}
+			protected function onResultFindFormularioAprovarRecepcaoOs(ev:ResultEvent):void{
+				formulario.dataProvider = ArrayCollection(ev.result);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findCodigoLiberacao" result="onResultFindCodigoLiberacao(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findFormularioAprovarRecepcaoOs" result="onResultFindFormularioAprovarRecepcaoOs(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	<mx:DataGrid x="0" y="0" width="100%" height="100%" id="formulario" doubleClickEnabled="true" doubleClick="button1_clickHandler()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Código Solicitação" dataField="id"/>
+			<mx:DataGridColumn headerText="Código Cliente" dataField="codigoCliente"/>
+			<mx:DataGridColumn headerText="Cliente" dataField="cliente"/>
+			<mx:DataGridColumn headerText="Série" dataField="serie"/>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Filial" dataField="nomeFilial"/>
+			<mx:DataGridColumn headerText="Status" dataField="status"/>
+			<mx:DataGridColumn headerText="Maquina Parou" dataField="maquinaParou"/>
+			<mx:DataGridColumn headerText="Observação">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:TextArea text="{data.obsRejeicao}"/>
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			
+			<mx:DataGridColumn headerText="Visualizar">
+			<mx:itemRenderer>
+				<mx:Component>
+					<mx:VBox verticalGap="2" horizontalAlign="center">
+						<mx:Image source="img/information.png" width="15" buttonMode="true" height="15" toolTip="Clique para: Visualizar Solicitação." click="{dispatchEvent(new Event('VISUALIZAR', true)) }" />
+					</mx:VBox>
+				</mx:Component> 	
+			</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</util:ModuleTitleWindow>

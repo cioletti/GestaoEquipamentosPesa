@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow  title="Clonar" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="392" height="280">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.PrefixoBean;
+			import bean.TreeBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			
+			
+			
+			private var urlLogin:String;
+			private var tipoTree:String = 'GE';
+			private var myValidators:Array;
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			private var listPrefixo:ArrayCollection = new ArrayCollection();
+			private var prefixoBean: PrefixoBean = new PrefixoBean();
+			
+			private var familiaDestino:Number;
+			private var modeloDestino:Number;
+			private var prefixoDestino:Number;
+			
+			private var modeloOrigem:Number;
+			private var prefixoOrigem:Number;
+			private var familiaOrigem:Number;
+			
+			
+			public function init(urlLogin:String, prefixo:PrefixoBean, modelo:TreeBean, familia:FamiliaBean):void{
+				this.urlLogin = urlLogin;
+				myValidators = new Array();
+				myValidators.push(campoModeloCbx);
+				myValidators.push(campoPrefixoCbx);
+				myValidators.push(campoFamiliaCbx);
+				serviceController.findAllFamilia();
+//				serviceController.findAllModelo();
+//				serviceController.findAllPrefixo();
+				prefixoOrigem=prefixo.id;
+				modeloOrigem = modelo.idArv;
+				familiaOrigem=familia.id;
+				
+			}
+			
+			
+			
+			
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = event.result;
+			}
+			
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{				
+				serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+				prefixoCbx.selectedIndex = -1;
+			}
+			
+			private function onResultFindAllTreePai(event:ResultEvent):void{		
+				familiaDestino = FamiliaBean(familiaCbx.selectedItem).id;
+				modeloCbx.dataProvider = null;
+				listPaiTree.removeAll();
+				listPaiTree.addAll(event.result as ArrayCollection);
+				modeloCbx.dataProvider = listPaiTree;
+				//this.novo();
+				
+			}
+			
+			private function onResultFindAllModelo (event:ResultEvent):void{
+				modeloCbx.dataProvider = event.result;
+			}
+			
+			
+			private function onResultFindAllPrefixo (event:ResultEvent):void{
+				prefixoCbx.dataProvider = null;
+				listPrefixo.removeAll();
+				listPrefixo.addAll(event.result as ArrayCollection);
+				prefixoCbx.dataProvider = listPrefixo;
+			}
+			
+			private function onChangeModelo(event:ListEvent):void{
+				prefixoBean = new PrefixoBean();
+ 				serviceController.findAllPrefixo(TreeBean(modeloCbx.selectedItem).idArv);
+				modeloDestino= TreeBean(modeloCbx.selectedItem).idArv;
+			}
+			
+			private function onChangePrefixo(event:ListEvent):void{
+				//prefixoBean = new PrefixoBean();
+				prefixoDestino = PrefixoBean(prefixoCbx.selectedItem).id
+			}
+			
+			private function clonarPreco():void{
+				if((familiaDestino==familiaOrigem)&&(modeloDestino==modeloOrigem)&&(prefixoDestino==prefixoOrigem)){
+					Alert.show("Você não pode clonar o mesmo objeto para o banco");			
+				}else{
+					serviceController.clonarPreco(modeloOrigem,prefixoOrigem,modeloDestino,prefixoDestino);	
+					
+				}
+			}
+			
+
+				
+			private function onResultClonarPreco (event:ResultEvent):void{
+				Alert.show("Itens clonados com sucesso.");
+				
+			}
+			
+			
+
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllPrefixo" result="onResultFindAllPrefixo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllModelo" result="onResultFindAllModelo(event)" />
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTreePai" result="onResultFindAllTreePai(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="clonarPreco" result="onResultClonarPreco(event);ProgressBarHelper.removeProgressBar()" />
+		
+	</mx:RemoteObject>
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoPrefixoCbx" source="{prefixoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoFamiliaCbx" source="{familiaCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+
+	
+	<mx:Form width="100%" height="140" x="0" y="4">
+		<mx:FormItem label="Família" required="false" width="100%">
+			<mx:ComboBox id="familiaCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandler(event)"></mx:ComboBox>
+		</mx:FormItem>
+		<mx:FormItem label="Modelo" width="100%" height="25">			
+			<mx:ComboBox id="modeloCbx" prompt="Selecione" labelField="descricao" change="onChangeModelo(event)"> </mx:ComboBox>
+		</mx:FormItem>
+			<mx:FormItem label="Prefixo" width="100%" height="25">
+				<mx:ComboBox id="prefixoCbx" prompt="Selecione" labelField="descricao" change="onChangePrefixo(event)"></mx:ComboBox>
+			</mx:FormItem>
+
+	</mx:Form>
+	
+	<mx:Button id="clonar" x="124.5" y="152" label="Clonar" click="clonarPreco()" />	
+	
+</util:ModuleTitleWindow>

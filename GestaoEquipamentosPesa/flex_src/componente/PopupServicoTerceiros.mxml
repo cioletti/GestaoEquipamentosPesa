@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Serviço de Terceiros"  xmlns:util="util.*" width="1268" height="600" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"  alpha="0.97" cornerRadius="4" borderColor="#C6DEFF" xmlns:print="org.print.*" xmlns:control="br.com.thinklab.util.control.*">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.FornecedorServicoTerceirosBean;
+			import bean.SegmentoBean;
+			import bean.ServicoTerceirosBean;
+			import bean.TipoContratoBean;
+			import bean.TipoFreteBean;
+			import bean.TipoServicoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			public var urlLogin:String = "";
+			private var idCheckin:Number;
+			public var codCliente:String;
+			private var myValidators:Array;
+			public var isSave:Boolean = false;
+			private var st:ServicoTerceirosBean = new ServicoTerceirosBean();
+			private var checkinObj:CheckinBean;
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione o Arquivo(*.xls;)", "*.xls;");
+			private var localServico:ArrayCollection = new ArrayCollection();
+			private var isEditServTerc:Boolean = false;
+			public function init(urlLogin:String, idCheckin:Number, codCliente:String, checkinObj:CheckinBean):void{
+				this.urlLogin = urlLogin;
+				this.idCheckin = idCheckin;
+				this.codCliente = codCliente;
+				this.checkinObj = checkinObj;
+				gridServicoTerceiros.addEventListener("EXCLUIR", remover);
+				gridServicoTerceiros.addEventListener("SENDMETROLOGIA", enviarMetrologia);
+				gridServicoTerceiros.addEventListener("IMPRIMIRDETALHES", imprimirDetalhes);
+				gridServicoTerceiros.addEventListener("VISUALIZAR", popupVisualizarArquivos);
+				myValidators = new Array();
+				myValidators.push(campoPrecoText);
+				//myValidators.push(campoQtdDiasText);
+				myValidators.push(campoSegmentoCbx);
+				myValidators.push(campoTipoServicoCbx);
+				myValidators.push(campoFornecedorCbx);
+				myValidators.push(campoServTerc);
+				//myValidators.push(campoTipoFreteCbx);
+				serviceController.findAllSegmentoServTerc(idCheckin);
+				//codClienteText.text = this.codCliente;
+				//observacao.text = checkinObj.obsCrm;
+				//qtdDiasText.text = String(checkinObj.validadeProposta);
+				//gridServicoTerceiros.dataProvider = checkinObj.servicoTerceirosList;
+				if(checkinObj.statusNegociacaoConsultor == 'A' || checkinObj.statusNegociacaoConsultor == 'R'){
+					saveServTercBtn.includeInLayout = false;
+					saveServTercBtn.visible = false;
+				}
+				
+				localServico.addItem("Externo");
+				localServico.addItem("Interno");
+				
+			}
+			
+			
+			private function enviarMetrologia(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente liberar o serviço de terceiros?", "Alerta", 3, this, alertClickHandlerEnviarMetrologia);				
+			}
+			
+			private function alertClickHandlerEnviarMetrologia(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.popupObsServTerceiros();
+				}
+			}
+			
+			private	var popupObs:PopupObs;
+			private function popupObsServTerceiros():void{
+				popupObs = new PopupObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsServTerceiros);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+			}
+			private function removePopupObsServTerceiros(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.saveOrUpdateSituacaoServTerc(ServicoTerceirosBean(gridServicoTerceiros.selectedItem),popupObs.obsTextArea.text);
+				}
+				
+				
+			}
+			
+			private function onResultSaveOrUpdateSituacaoServTerc(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Serviço de terceiros Liberados com sucesso!", "Sucesso");
+					serviceController.findAllServicoTerceirosAssociado(SegmentoBean(segmentoCbx.selectedItem).id);
+					
+					return;
+				}
+				Alert.show("Erro ao tentar liberar serviço de terceiros", "Erro");
+			}
+			
+//			private function fixTipoFreteCbx(idTipoFrete:Number):void{
+//				var tfList:ArrayCollection = ArrayCollection(tipoFreteCbx.dataProvider);
+//				for(var i:int=0; i < tfList.length; i++){
+//					var tf:TipoFreteBean = TipoFreteBean(tfList.getItemAt(i));
+//					if(tf.id == idTipoFrete){
+//						tipoFreteCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+			
+			private function remover(ev: Event): void{
+				if(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros == 'AP' || ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros == 'OFI' || ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros == 'REJOFI'){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";
+					Alert.show("Deseja realmente remover?", "Apagar", 3, this, alertClickHandler);
+				}else{
+					Alert.show("Não é permitido remover o serviço de terceiros, pois ele não está na oficina!", "Alerta");
+				}
+			}			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.remover(ServicoTerceirosBean(gridServicoTerceiros.selectedItem));
+				}
+			}
+			private function onResultFindAllSegmento(event:ResultEvent):void{
+				segmentoCbx.dataProvider = event.result;
+				this.fixSegmentoServTerc();
+				serviceController.findAllServicoTerceiros();
+			}
+			private function onResultFindAllServicoTerceiros(event:ResultEvent):void{
+				tipoServicoCbx.dataProvider = event.result;	
+				serviceController.findAllFrete();
+			}
+//			private function onResultFindAllFrete(event:ResultEvent):void{
+//				tipoFreteCbx.dataProvider = event.result;
+//				
+//				this.fixTipoFreteCbx(checkinObj.idTipoFrete);
+//			}
+			private function onResultFindAllServicoTerceirosAssociado(event:ResultEvent):void{
+				gridServicoTerceiros.dataProvider = event.result;				
+			}
+			private function onResultRemover(event:ResultEvent):void{
+				tipoServicoCbx.selectedIndex= -1;
+				fornecedorCbx.selectedIndex = -1;
+				precoText.text = "0.00";
+				qtdServTerc.text = "0";
+				obsText.text = "";
+				nomeDetalhes.text= "";					
+				ArrayCollection(gridServicoTerceiros.dataProvider).removeItemAt(gridServicoTerceiros.selectedIndex);
+			}
+			private function onResultSaveServicoTerceiros(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Já existe o Tipo de Serviço de Terceiro associado ao Segmento!", "Alerta");
+					return;
+				}
+				anexarBtn.visible = true;
+				gridServicoTerceiros.dataProvider = ArrayCollection(event.result);
+			}
+
+			protected function segmentoCbx_changeHandler(event:ListEvent):void
+			{
+				nomeDetalhes.text = "";
+				removerBtn.visible = false;
+				anexarBtn.visible = false;
+				serviceController.findAllServicoTerceirosAssociado(SegmentoBean(segmentoCbx.selectedItem).id);
+			}
+//			private function enviarCRM():void{
+//				if(qtdDiasText.text != null && qtdDiasText.text != ""){
+//					if(tipoFreteCbx.selectedIndex == -1){
+//						Alert.show("Por favor selecione um tipo de Frete", "Alerta!");
+//						return;
+//					}
+//					st.qtdDiasProposta = qtdDiasText.text;
+//					serviceController.saveDataProposta(st, idCheckin, TipoFreteBean(tipoFreteCbx.selectedItem).id, observacao.text);					
+//				}else{
+//					qtdDiasText.setFocus();				
+//					Alert.show("Por favor preencha o prazo de execução do serviço","Alerta!");
+//				}
+//			}
+			private function onResultSaveDataProposta(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Prazo de execução do serviço salvo com sucesso","Alerta!");
+					isSave = true;
+					//this.codCliente = codClienteText.text;
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao salvar o prazo de execução do serviço", "Alerta!");						
+				}
+			}
+			
+			private function save():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {
+					var servTercList:ArrayCollection = ArrayCollection(gridServicoTerceiros.dataProvider);
+					for(var i:int = 0; i < servTercList.length; i++){
+						var beanServTerc:ServicoTerceirosBean = ServicoTerceirosBean(servTercList.getItemAt(i));
+						if(beanServTerc.idTipoServicoTerceiros == TipoServicoBean(tipoServicoCbx.selectedItem).id && this.isEditServTerc == false){
+							Alert.show("Não foi possível cadastrar o tipo de serviço de terceiros pois, o mesmo já existe!", "Alerta");
+							return;
+						}
+					}
+					
+					st.idSegmento = SegmentoBean(segmentoCbx.selectedItem).id;
+					st.idTipoServicoTerceiros = TipoServicoBean(tipoServicoCbx.selectedItem).id;
+					st.valor = precoText.text;
+					//st.qtdDiasProposta = qtdDiasText.text;
+					st.qtdServTerceiros = Number(qtdServTerc.text);
+					st.obs = obsText.text;
+					st.idFornecedor = FornecedorServicoTerceirosBean(fornecedorCbx.selectedItem).id;
+					st.localServico = String(localCbx.selectedItem.data);
+					//this.codCliente = codClienteText.text;
+					serviceController.saveServicoTerceiros(st, idCheckin, null);
+					//isSave = true;
+				} else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			
+			private function doubleClick():void{
+				isEditServTerc = true;
+				if(checkinObj.statusNegociacaoConsultor == 'A'){
+					Alert.show("Não é permitido editar serviço de terceiros já liberados!", "Alerta");
+					return;
+				}
+				if(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros  != null && ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros == 'AP'){
+					tipoServicoCbx.enabled = false;
+					fornecedorCbx.enabled = false;
+					localCbx.enabled = false;
+					qtdServTerc.enabled = false;
+					obsText.enabled = false;
+				}
+//				if(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros  != null && ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros != 'OFI'){
+//					saveServTercBtn.visible = false;
+//					Alert.show("Não é permitido editar serviço de terceiros fora da oficina!", "Alerta");
+//					return;
+//				}
+				
+				fornecedorList.removeAll();
+				fornecedorList.addAll(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).fornecedorList);
+				fornecedorCbx.dataProvider = fornecedorList;
+				this.fixSegmento();
+				this.fixTipoServTerc();
+				this.fixFornecedor();
+				this.fixLocalServico();
+				precoText.text = ServicoTerceirosBean(gridServicoTerceiros.selectedItem).valor;
+				qtdServTerc.text = String(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).qtdServTerceiros);
+				obsText.text = ServicoTerceirosBean(gridServicoTerceiros.selectedItem).obs;
+				st.siglaStatusServTerceiros = ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros;
+				if(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).localServico == 'I'){
+				st.localServico = ServicoTerceirosBean(gridServicoTerceiros.selectedItem).localServico;
+				}
+				if(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros  != null && ServicoTerceirosBean(gridServicoTerceiros.selectedItem).siglaStatusServTerceiros == 'ENVFOR'){
+					fornecedorCbx.editable = false;	
+					qtdServTerc.editable = false;
+				}else{
+					fornecedorCbx.editable = true;	
+					qtdServTerc.editable = true;
+				}
+				
+				serviceController.recuperarNomeArquivoDetalhes(String(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idSegmento)+"_"+String(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idTipoServicoTerceiros));
+			}
+			
+			private function fixSegmento():void{
+				var segmentoList:ArrayCollection = ArrayCollection(segmentoCbx.dataProvider);
+				for(var i:int=0; i < segmentoList.length; i++){
+					var s:SegmentoBean = SegmentoBean(segmentoList.getItemAt(i));
+					if(s.id == Number(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idSegmento)){
+						segmentoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixSegmentoServTerc():void{
+				var segmentoList:ArrayCollection = ArrayCollection(segmentoCbx.dataProvider);
+				for(var i:int=0; i < segmentoList.length; i++){
+					var s:SegmentoBean = SegmentoBean(segmentoList.getItemAt(i));
+					if(s.numeroSegmento == '46'){
+						segmentoCbx.selectedIndex = i;
+						serviceController.findAllServicoTerceirosAssociado(SegmentoBean(segmentoCbx.selectedItem).id);
+						break;
+					}
+				}
+			}
+			private function fixTipoServTerc():void{
+				var servTercList:ArrayCollection = ArrayCollection(tipoServicoCbx.dataProvider);
+				for(var i:int=0; i < servTercList.length; i++){
+					var t:TipoServicoBean = TipoServicoBean(servTercList.getItemAt(i));
+					if(t.id == Number(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idTipoServicoTerceiros)){
+						tipoServicoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixFornecedor():void{
+				var fornecedorList:ArrayCollection = ArrayCollection(fornecedorCbx.dataProvider);
+				for(var i:int=0; i < fornecedorList.length; i++){
+					var f:FornecedorServicoTerceirosBean = FornecedorServicoTerceirosBean(fornecedorList.getItemAt(i));
+					if(f.id == Number(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idFornecedor)){
+						fornecedorCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function fixLocalServico():void{
+				var localList:ArrayCollection = ArrayCollection(localCbx.dataProvider);
+				for(var i:int=0; i < localList.length; i++){
+					if(ServicoTerceirosBean(gridServicoTerceiros.selectedItem).localServico == localList.getItemAt(i).data){
+						localCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+			
+			[Bindable]
+			private var fornecedorList:ArrayCollection = new ArrayCollection(); 
+			protected function tipoServicoCbx_changeHandler(event:ListEvent):void
+			{
+				isEditServTerc = false;
+				nomeDetalhes.text = "";
+				removerBtn.visible = false;
+				anexarBtn.visible = false;
+				serviceController.findAllFornecedoresAssociados(TipoServicoBean(tipoServicoCbx.selectedItem).id);
+			}
+			
+			private function onResultFindAllFornecedoresAssociados(event:ResultEvent):void{
+				fornecedorList.removeAll();
+				fornecedorList.addAll(ArrayCollection(event.result));
+				fornecedorCbx.dataProvider = fornecedorList;
+			}
+			
+			private function adicionarArquivoDetalhes():void {
+				
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivoDetalhes);
+			}
+			
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoDetalhes(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				serviceController.fazerUploadEmDiretorioDetalhes(String(segmentoCbx.selectedItem.id) +"_"+ String(tipoServicoCbx.selectedItem.id), data, uploadFile.name);
+			}
+			
+			private function onResultUploadSucesso(event:ResultEvent):void {
+				if(Boolean(event.result)){
+					nomeDetalhes.text = uploadFile.name;
+					Alert.show("Detalhe anexado com sucesso!", "Sucesso!");
+					//serviceController.recuperarNomeArquivoDetalhes(String(segmentoCbx.selectedItem.id) +"_"+ String(tipoServicoCbx.selectedItem.id));
+					serviceController.findAllServicoTerceirosAssociado(SegmentoBean(segmentoCbx.selectedItem).id);
+					removerBtn.visible = true;
+					return;
+				}
+				Alert.show("Ocorreu um erro ao anexar o detalhe!", "Alerta!");
+			}
+			
+			private function onResultRecuperarArquivoDetalhes(event:ResultEvent):void {
+				if(String(event.result).length > 0){
+					nomeDetalhes.text = String(event.result);
+					removerBtn.visible = true;
+					anexarBtn.visible = true;
+				}else{
+					nomeDetalhes.text = "";
+					removerBtn.visible = false;
+					anexarBtn.visible = true;
+				}
+			}
+			
+			private function removerArquivosDetalhes():void {
+				serviceController.removerArquivoDetalhes(String(segmentoCbx.selectedItem.id) +"_"+ String(tipoServicoCbx.selectedItem.id));		
+			}
+			
+			private function onResultRemoverArquivosDetalhes(event:ResultEvent):void {
+				if(Boolean(event.result)){
+					nomeDetalhes.text = "";
+					Alert.show("Detalhe removido com sucesso!", "Sucesso!");
+					removerBtn.visible = false;
+					serviceController.findAllServicoTerceirosAssociado(SegmentoBean(segmentoCbx.selectedItem).id);
+					return;
+				}
+				Alert.show("Ocorreu um erro ao remover o detalhe!", "Alerta!");
+			}
+			
+			
+			protected function imprimirDetalhes(ev:Event):void{
+				var uv:URLVariables = new URLVariables();
+				uv.idSegmento = ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idSegmento;
+				uv.idTipoServTerceiro = ServicoTerceirosBean(gridServicoTerceiros.selectedItem).idTipoServicoTerceiros;
+				var url:URLRequest = new URLRequest("VisualizarDetalhes");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			private	var popupAnexo:PopUpArquivosServicoTerceiros;
+			private function popupVisualizarArquivos(ev:Event):void{
+				popupAnexo = new PopUpArquivosServicoTerceiros();
+				popupAnexo.addEventListener(CloseEvent.CLOSE, removePopupObsAnexosServTerceiros);
+				PopUpManager.addPopUp(popupAnexo, this, true);
+				PopUpManager.centerPopUp(popupAnexo);
+				popupAnexo.init(urlLogin, ServicoTerceirosBean(gridServicoTerceiros.selectedItem));
+			}
+			
+			private function removePopupObsAnexosServTerceiros(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="comboLocal">
+		<mx:Object label="Externo" data="E" />
+		<mx:Object label="Interno" data="I" />
+	</mx:ArrayCollection>
+	
+	<mx:NumberValidator id="campoSegmentoCbx" source="{segmentoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoTipoServicoCbx" source="{tipoServicoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoFornecedorCbx" source="{fornecedorCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoLocalCbx" source="{localCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoPrecoText" requiredFieldError="Este campo  obrigatório!" required="true" source="{precoText}" property="text" />
+	<!--mx:StringValidator id="campoQtdDiasText" requiredFieldError="Este campo  obrigatório!" required="true" source="{qtdDiasText}" property="text" /-->
+	<mx:StringValidator id="campoServTerc" requiredFieldError="Este campo  obrigatório!" required="true" source="{qtdServTerc}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllSegmentoServTerc" result="onResultFindAllSegmento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllServicoTerceiros" result="onResultFindAllServicoTerceiros(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="remover" result="onResultRemover(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllServicoTerceirosAssociado" result="onResultFindAllServicoTerceirosAssociado(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllFrete" result="onResultFindAllFrete(event);ProgressBarHelper.removeProgressBar()" /-->
+		<mx:method name="saveServicoTerceiros" result="onResultSaveServicoTerceiros(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="saveDataProposta" result="onResultSaveDataProposta(event)" /-->
+		<mx:method name="saveOrUpdateSituacaoServTerc" result="onResultSaveOrUpdateSituacaoServTerc(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFornecedoresAssociados" result="onResultFindAllFornecedoresAssociados(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="fazerUploadEmDiretorioDetalhes" result="onResultUploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="recuperarNomeArquivoDetalhes" result="onResultRecuperarArquivoDetalhes(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="removerArquivoDetalhes" result="onResultRemoverArquivosDetalhes(event);ProgressBarHelper.removeProgressBar()"/>	
+		
+	</mx:RemoteObject>
+	
+	<mx:VBox width="100%" height="100%">
+		<mx:HBox width="100%" height="100%" horizontalAlign="center">
+			<mx:VBox width="100%" height="100%" horizontalAlign="center">
+				<mx:Form>
+					<mx:FormItem label="Segmento" required="true">
+						<mx:ComboBox id="segmentoCbx" enabled="false" labelField="descricao" prompt="Selecione" change="segmentoCbx_changeHandler(event)"></mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Tipo de Serviço de Terceiro" required="true">
+						<mx:ComboBox id="tipoServicoCbx" labelField="descricao" prompt="Selecione" change="tipoServicoCbx_changeHandler(event)"></mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Fornecedor" required="true">
+						<mx:ComboBox id="fornecedorCbx" labelField="descricao" prompt="Selecione"></mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Local Serviço" required="true">
+						<mx:ComboBox id="localCbx" enabled="true" labelField="label" dataProvider="{comboLocal}"></mx:ComboBox>
+					</mx:FormItem>
+					<!--mx:FormItem label="Tipo Frete" required="true">
+						<mx:ComboBox id="tipoFreteCbx" labelField="tipoFrete" prompt="Selecione"></mx:ComboBox>
+					</mx:FormItem-->
+					<mx:FormItem label="Preco" width="351" required="true">
+						<control:DecimalInput editable="true" id="precoText" width="93" precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+					</mx:FormItem>
+					<mx:FormItem label="Quantidade de serviços de Terceiros" required="true">
+						<mx:TextInput id="qtdServTerc" text="1" enabled="false" editable="false" restrict="0-9" maxChars="5" >
+						</mx:TextInput>
+					</mx:FormItem>
+					<mx:FormItem label="Obs" height="106">
+						<mx:TextArea height="100%" id="obsText"/>
+					</mx:FormItem>
+					<!--mx:FormItem label="Prazo estimado para execução do serviço" required="true">
+						<mx:TextInput id="qtdDiasText" restrict="0-9" maxChars="3" >
+							
+						</mx:TextInput>
+					</mx:FormItem-->
+				</mx:Form>
+				<mx:Label x="480.5" y="324" text="Detalhes:"/>
+				<mx:Label text="" id="nomeDetalhes"/>
+			</mx:VBox>
+			
+			<!--mx:VBox width="50%" height="100%">
+				<mx:Form width="100%" height="100%">
+					<mx:FormItem label="Cod.Cliente">
+						<mx:TextInput id="codClienteText" restrict="0-9" width="100%">				
+						</mx:TextInput>
+					</mx:FormItem>
+					<mx:FormItem label="Observação" width="100%" height="100%">
+						<mx:TextArea height="100%" id="observacao" width="100%"/>
+					</mx:FormItem>		
+				</mx:Form>
+			</mx:VBox-->
+		</mx:HBox>
+	
+		<mx:HBox width="100%" horizontalAlign="center" verticalAlign="middle" height="50">
+			<!--mx:Button label="Enviar para o Aprovação" click="enviarCRM()"/-->
+			<mx:Button label="Salvar" click="save()" id="saveServTercBtn"/>
+			<mx:Button label="Anexar" click="adicionarArquivoDetalhes()" id="anexarBtn" visible="false"/>
+			<mx:Button label="Remover" click="removerArquivosDetalhes()" id="removerBtn" visible="false"/>
+		</mx:HBox>
+		
+		<mx:DataGrid id="gridServicoTerceiros" width="100%" height="100%" doubleClick="doubleClick()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Situação">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="{data.urlStatus}" width="15"  height="15" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Tipo de Serviço" dataField="descricao" width="200"/>
+				<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+				<mx:DataGridColumn headerText="Data&#13;Previsão&#13;Entrega" dataField="dataPrevisaoEntrega" width="70"/>
+				
+				<mx:DataGridColumn headerText="Obs">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:TextArea text="{data.obs}"/>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Fornecedor" dataField="descricaoFornecedor" width="250"/>
+				<mx:DataGridColumn headerText="Status" dataField="statusServTerceiros" width="250"/>
+				<mx:DataGridColumn headerText="Local" dataField="descricaoLocalServico" width="70"/>
+				<mx:DataGridColumn headerText="Detalhes" width="63">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/detalhes.png"  width="15" buttonMode="true" visible="{(data.arquivoDetalhe.length > 0)? true : false}"  toolTip="Detalhes Serviços Terceiros" height="15" click="{dispatchEvent(new Event('IMPRIMIRDETALHES', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Liberar&#13; Serviço" dataField="enviar" width="70">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/confirm.png" width="15" toolTip="Liberar Serviço Terceiro." visible="{(data.siglaStatusServTerceiros == 'OFI' || data.siglaStatusServTerceiros == 'REJOFI')?true:false}" buttonMode="true" height="15"  click="{dispatchEvent(new Event('SENDMETROLOGIA', true)) }" />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Anexos" dataField="anexos" width="55">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/download.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('VISUALIZAR', true)) }" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Excluir" dataField="excluir" width="70">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIR', true)) }" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</util:ModuleTitleWindow>

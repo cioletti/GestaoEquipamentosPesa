@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Data" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="266" height="152">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			public var clickButtonOk:Boolean = false;
+			
+			private function buttonOk():void{
+				if(data.text == ''){
+					Alert.show("O campo de data é obrigatório!", "Alerta");
+					return;
+				}
+				clickButtonOk = true;
+				this.close(null);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:DateField x="74" y="27" id="data" formatString="DD/MM/YYYY" dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+				  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+	<mx:Button x="98" y="70" label="Ok"  click="buttonOk()"/>
+	
+</util:ModuleTitleWindow>

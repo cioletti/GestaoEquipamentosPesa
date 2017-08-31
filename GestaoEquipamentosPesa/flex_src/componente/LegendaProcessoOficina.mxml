@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.DataHeaderBean;
+			import bean.JobCodeBean;
+			import bean.JobControlBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.VBox;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			[Bindable]
+			private var dateHearderList:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var segmentoList:ArrayCollection = new ArrayCollection();
+			private var usuarioBean:UsuarioBean;
+			
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{
+				this.usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin;
+				//serviceController.findAllHeaderList(dateHearderList);
+				serviceController.findAllJobControl();
+			}
+			var popuLegenda:PopupLegendaProcessoOficina;
+			protected function popupAlterarStatusLegenda(event:MouseEvent):void
+			{
+				popuLegenda = new PopupLegendaProcessoOficina();
+				popuLegenda.addEventListener(CloseEvent.CLOSE, removeoLegendaPopUp);
+				PopUpManager.addPopUp(popuLegenda, this, true);
+				PopUpManager.centerPopUp(popuLegenda);
+				popuLegenda.init(urlLogin,HBox(event.currentTarget).data.idCheckin, HBox(event.currentTarget).data.dataHeader, HBox(event.currentTarget).data.observacaoStatusLegenda, JobControlBean(jobControlCbx.selectedItem).descricao);	
+			}
+			
+			private function removeoLegendaPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popuLegenda.isSave == true){
+					//serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor, JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text);
+					if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+						serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,baCbx.selectedItem.label, campoPesquisaTxt.text, dataInicio.text, dataFim.text,baCbx.selectedItem.valor);
+					}else{
+						serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text,null);
+					}
+				}
+			}
+			
+			private function createDateHeader():void{
+				dataHeader.removeAllChildren();
+				for(var i:int=0; i < dateHearderList.length; i++){
+					var header:DataHeaderBean =  dateHearderList.getItemAt(i) as DataHeaderBean;
+					var vbox:VBox = new VBox();
+					vbox.width = 110;
+					if(i == 0){
+						vbox.width = 80;
+					}
+					if(i == 1 || i == 3){
+						vbox.width = 220;
+					}
+					if(i == 5){
+						vbox.width = 150;
+					}
+					if(i == 2){
+						vbox.width = 200;
+					}
+					if(i == 4){
+						vbox.width = 80;
+					}
+					vbox.height = 42;
+					if(i > 6){
+						var labelDescricaoDate:Label = new Label;
+						labelDescricaoDate.setStyle('color','black');
+						labelDescricaoDate.setStyle("fontWeight", "bold");
+						labelDescricaoDate.text = header.dateString;
+						vbox.addChild(labelDescricaoDate);
+					}else{
+						vbox.setStyle('verticalAlign','middle');
+					}
+					var labelDate:Label = new Label;
+					labelDate.text = header.descricao;
+					labelDate.setStyle('color','black');
+					
+					labelDate.setStyle("fontWeight", "bold");
+					
+
+					vbox.addChild(labelDate);
+					//vbox.addChild(labelDescricaoDate);
+					vbox.setStyle("backgroundColor", 0xC6DEFF);
+					vbox.setStyle('horizontalAlign','center');
+					dataHeader.addChild(vbox);
+				}
+				
+			}
+			
+			private function onResultFindAllHeaderList(event:ResultEvent):void{
+				dateHearderList = ArrayCollection(event.result);
+				this.createDateHeader();
+				//serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor, JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text);
+				if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,baCbx.selectedItem.label, campoPesquisaTxt.text, dataInicio.text, dataFim.text,baCbx.selectedItem.valor);
+				}else{
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text,null);
+				}
+			}
+			
+			private function onResultFindAllStatusFluxoSegmentoOs(event:ResultEvent):void{
+				segmentoList = ArrayCollection(event.result);
+				if(segmentoList.length > 0){
+					dataHeaderDatasHbox.visible = true;
+					this.createTabelaProcesso();
+				}else{
+					dataHeaderDatasHbox.visible = false;
+					statusOSVbox.removeAllChildren();
+					Alert.show("Não foi recuperado nenhuma programação dos serviços da oficina!", "Alerta");
+				}
+				
+			}
+			
+			private function createTabelaProcesso():void{
+				statusOSVbox.removeAllChildren();
+				for(var i:int=0; i < segmentoList.length; i++){
+					var seg:SegmentoBean =  segmentoList.getItemAt(i) as SegmentoBean;
+					var hbox:HBox = new HBox();
+					hbox.percentWidth = 110;
+					hbox.height = 40;
+					
+					
+					var hboxLabel:HBox = new HBox();
+					var label:Label = new Label;
+					label.setStyle('color','white');
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.dateOpen;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 80;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.cliente.substring(0,28);
+					label.toolTip = seg.cliente;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 220;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					if(seg.isMoreThirtyDay != null && seg.isMoreThirtyDay == 'S'){
+						label.setStyle('color','red');
+					}
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.numOs+"-"+seg.numSerie+"-"+seg.idEquipamento;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 200;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.descricaojobControl;
+					if(seg.descricaojobControl != null && seg.descricaojobControl.length > 28){
+						label.text = seg.descricaojobControl.substring(0,28);
+					}
+					hboxLabel.data = seg;
+					if(this.usuarioBean.siglaPerfil == 'ADM'){
+						hboxLabel.doubleClickEnabled = true;
+						hboxLabel.addEventListener(MouseEvent.DOUBLE_CLICK,clickObsJobControl);
+					}
+					label.toolTip = seg.descricaojobControl;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 220;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.modelo;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 80;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.prazoPETS;
+					if(seg.statusPrazo == 'NA'){
+						hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					} else if(seg.statusPrazo == 'EAP'){
+						hboxLabel.setStyle("backgroundColor", 'blue');
+					} else if(seg.statusPrazo == 'PN'){
+						hboxLabel.setStyle("backgroundColor", 'red');
+					} else if(seg.statusPrazo == 'PC'){
+						hboxLabel.setStyle("backgroundColor", 'green');
+					}
+					
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 150;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.setStyle("fontWeight", "bold");
+					label.text = seg.filial;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					
+					hboxLabel.width = 110;
+					hboxLabel.height = 40;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					for(var j:int = 0; j < seg.segmentoList.length; j++){
+						var segmentoBean:SegmentoBean = SegmentoBean(seg.segmentoList.getItemAt(j));
+						
+						hboxLabel = new HBox();
+						label = new Label;
+						label.setStyle('color','white');
+						label.setStyle("fontWeight", "bold");
+						label.text = segmentoBean.siglaStatusLegenda;
+						label.toolTip = segmentoBean.descricaoStatusLegenda;
+						hboxLabel.addChild(label);	
+						hboxLabel.data = segmentoBean;
+						
+						if(segmentoBean.siglaStatusLegenda == 'NV'){
+							hboxLabel.setStyle("backgroundColor", 0xFF6347);
+						}else if(segmentoBean.siglaStatusLegenda == 'A'){
+							hboxLabel.setStyle("backgroundColor", 'red');
+						} else if(segmentoBean.siglaStatusLegenda == 'P'){
+							hboxLabel.setStyle("backgroundColor", 'yellow');
+							label.setStyle('color','black');
+						} else if(segmentoBean.siglaStatusLegenda == 'AO'){
+							hboxLabel.setStyle("backgroundColor", 0xCD853F);
+						} else if(segmentoBean.siglaStatusLegenda == 'AD'){
+							hboxLabel.setStyle("backgroundColor", 0x8B4513);
+						} else if(segmentoBean.siglaStatusLegenda == 'OO'){
+							hboxLabel.setStyle("backgroundColor", 0x8A2BE2);
+						} else if(segmentoBean.siglaStatusLegenda == 'I'){
+							hboxLabel.setStyle("backgroundColor", 0x8B7355);
+						} else if(segmentoBean.siglaStatusLegenda == 'AT'){
+							hboxLabel.setStyle("backgroundColor", 0xBC8F8F);
+						} else if(segmentoBean.siglaStatusLegenda == 'D'){
+							hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+						} else if(segmentoBean.siglaStatusLegenda == 'M'){
+							hboxLabel.setStyle("backgroundColor", 0x000080);
+						} else if(segmentoBean.siglaStatusLegenda == 'T'){
+							hboxLabel.setStyle("backgroundColor", 0x6495ED);
+						} else if(segmentoBean.siglaStatusLegenda == 'TA'){
+							hboxLabel.setStyle("backgroundColor", 'green');
+						} else if(segmentoBean.siglaStatusLegenda == 'OK'){
+							hboxLabel.setStyle("backgroundColor", 'green');
+							label.text = segmentoBean.siglaStatusLegenda+" "+segmentoBean.jbctStr;
+						} else if(segmentoBean.siglaStatusLegenda == 'F'){
+							hboxLabel.setStyle("backgroundColor", 'green');
+						} else if(segmentoBean.siglaStatusLegenda == 'AC'){
+							hboxLabel.setStyle("backgroundColor", 0x696969);
+						} else if(segmentoBean.siglaStatusLegenda == 'RP'){
+							hboxLabel.setStyle("backgroundColor", 0xFFA500);
+						} else if(segmentoBean.siglaStatusLegenda == 'R'){
+							hboxLabel.setStyle("backgroundColor", 'red');
+						} else if(segmentoBean.siglaStatusLegenda == 'AM'){
+							hboxLabel.setStyle("backgroundColor", 0xB5B5B5);
+						} else if(segmentoBean.siglaStatusLegenda == 'ADI'){
+							hboxLabel.setStyle("backgroundColor", 0xCD5C5C);
+						} else if(segmentoBean.siglaStatusLegenda == 'E'){
+							hboxLabel.setStyle("backgroundColor", 'black');
+							label.setStyle('color','white');
+						} else if(segmentoBean.siglaStatusLegenda == 'BRANCO'){
+							hboxLabel.setStyle("backgroundColor", 0xEEE5DE);
+							label.text = '';
+						} else if(segmentoBean.siglaStatusLegenda == 'AC'){
+							hboxLabel.setStyle("backgroundColor", 0x00FFFF);
+						}
+						//if(segmentoBean.siglaStatusLegenda != 'BRANCO'){
+							//hboxLabel.setStyle("backgroundColor", 0x2F4F4F);
+						if(this.usuarioBean.siglaPerfil == 'ADM'){
+							hboxLabel.doubleClickEnabled = true;
+							hboxLabel.addEventListener(MouseEvent.DOUBLE_CLICK,clickStatusSegmento); 
+						}
+						//}
+						hboxLabel.setStyle('horizontalAlign','center');
+						hboxLabel.setStyle('verticalAlign','middle');
+						
+						hboxLabel.width = 110;
+						hboxLabel.height = 40;					
+						hbox.addChild(hboxLabel);
+					}
+					statusOSVbox.addChild(hbox);
+				}
+			}
+			private var popupObsJobControl:PopUpObsJobControl;
+			private function clickObsJobControl(event:MouseEvent):void{
+				popupObsJobControl = new PopUpObsJobControl();
+				popupObsJobControl.addEventListener(CloseEvent.CLOSE, removePopUpJobControl);
+				PopUpManager.addPopUp(popupObsJobControl,this,true);
+				PopUpManager.centerPopUp(popupObsJobControl)
+				popupObsJobControl.init(urlLogin, SegmentoBean(HBox(event.currentTarget).data));	
+			}
+			
+			private function removePopUpJobControl(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if (popupObsJobControl.obsTxt != null && popupObsJobControl.isSave == true){
+					serviceController.saveObsJobControl(popupObsJobControl.obsTxt.text, popupObsJobControl.segmento.idCheckin, JobControlBean(jobControlCbx.selectedItem).descricao);
+				}
+			}
+			private function clickStatusSegmento(event:MouseEvent):void{
+				this.popupAlterarStatusLegenda(event);
+				//Alert.show("Teste Alerta "+HBox(event.currentTarget).data.id, "Alerta");
+//				var numChildren:Number = VBox(event.currentTarget).numChildren;
+//				if(numChildren == 0){
+//					this.openPopupAgendamento( VBox(event.currentTarget).data.matricula, VBox(event.currentTarget).id);
+//					//Alert.show(VBox(event.currentTarget).id);
+//					//Alert.show(VBox(event.currentTarget).data.matricula);
+//				}else{
+//					var result:ArrayCollection = new ArrayCollection();
+//					for (var i:int = 0; i < numChildren; i++) {
+//						var label:Label = Label(VBox(event.currentTarget).getChildAt(i))
+//						result.addItem(label.data);	
+//						//Alert.show(""+label.data.numOs);
+//						//Alert.show(""+label.data.id);
+//					}
+//					this.openPopupListaAgendamento(result);
+//				}
+			}
+			
+			private function findAllHeaderNext():void{
+				var header:DataHeaderBean = dateHearderList.getItemAt(7) as DataHeaderBean;
+				serviceController.findAllHeaderNext(header.dateString);
+			}
+			
+			private function findAllHeaderPrevious():void{
+				var header:DataHeaderBean = dateHearderList.getItemAt(7) as DataHeaderBean;
+				serviceController.findAllHeaderPrevious(header.dateString);
+			}
+			
+			private function findDataExataAgenda():void{
+				dataHeader.removeAllChildren();
+				serviceController.findAllHeaderList(dataExataAgenda.text);
+			}
+			
+			private function onResultFindAllHeaderNext(event:ResultEvent):void{
+				dataHeader.removeAllChildren();
+				dateHearderList.removeAll();
+				dateHearderList = ArrayCollection(event.result);
+				this.createDateHeader();
+				//serviceController.findAllHeaderList(dateHearderList);
+				//serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor, JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text);
+				if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,baCbx.selectedItem.label, campoPesquisaTxt.text, dataInicio.text, dataFim.text,baCbx.selectedItem.valor);
+				}else{
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text,null);
+				}
+				
+			}
+			private function onResultFindAllHeaderPrevious(event:ResultEvent):void{
+				dataHeader.removeAllChildren();
+				dateHearderList.removeAll();
+				dateHearderList = ArrayCollection(event.result);
+				this.createDateHeader();
+				//serviceController.findAllHeaderList(dateHearderList);
+				//serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,  JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text);
+				if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,baCbx.selectedItem.label, campoPesquisaTxt.text, dataInicio.text, dataFim.text,baCbx.selectedItem.valor);
+				}else{
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text,null);
+				}
+			}
+			private function onResultFindAllJobControl(event:ResultEvent):void{
+				jobControlCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultSaveObsJobControl(event:ResultEvent):void{
+				if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,baCbx.selectedItem.label, campoPesquisaTxt.text, dataInicio.text, dataFim.text,baCbx.selectedItem.valor);
+				}else{
+					serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text,null);
+				}
+				//serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor, JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text);
+			}
+				
+			
+
+			protected function pesquisarStatusSegmentosOS(event:MouseEvent):void
+			{
+				if(tipoClienteCbx.selectedIndex == -1 || jobControlCbx.selectedIndex == -1){
+					Alert.show("O campo Tipo de Cliente e Job Control são de preenchimento Obrigatorio!","Alerta");
+					return;
+				}
+				if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					if(baCbx.selectedIndex == -1){
+						Alert.show("O campo sessão é de preenchimento Obrigatório!","Alerta");
+						return;
+					}
+				}
+//				if(dataInicio.text == '' || dataFim.text == ''){
+//					Alert.show("O campo Data Início e Data Fim são de preenchimento Obrigatorio!","Alerta");
+//					return;
+//				}
+				if(dateHearderList.length == 0){
+					serviceController.findAllHeaderList(dateHearderList);
+				}else{
+					if(JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+						serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,baCbx.selectedItem.label, campoPesquisaTxt.text, dataInicio.text, dataFim.text,baCbx.selectedItem.valor);
+					}else{
+						serviceController.findAllStatusFluxoSegmentoOs(dateHearderList, tipoClienteCbx.selectedItem.valor,JobControlBean(jobControlCbx.selectedItem).descricao, campoPesquisaTxt.text, dataInicio.text, dataFim.text,null);
+					}
+				}
+			}
+
+
+			protected function image1_completeHandler(event:Event):void
+			{
+				if(dataInicio.text == '' || dataFim.text == ''){
+					Alert.show("A data de início e a data de fim são obrigatórias", "Alerta");
+					return;
+				}
+				var uv:URLVariables = new URLVariables();
+				if(dateHearderList != null && dateHearderList.length > 0){
+					var header:DataHeaderBean = dateHearderList.getItemAt(7) as DataHeaderBean;
+					uv.dataExata = header.dateString;
+				}
+				if(jobControlCbx.selectedIndex != -1){
+					uv.jobControl = JobControlBean(jobControlCbx.selectedItem).descricao;
+					
+				}
+				if(tipoClienteCbx.selectedIndex != -1){
+					uv.tipoCliente = tipoClienteCbx.selectedItem.valor;
+				}
+				uv.beginDate = dataInicio.text;
+				uv.endDate = dataFim.text;
+				uv.campoPesquisa = campoPesquisaTxt.text;
+				if(jobControlCbx.selectedIndex != -1 && JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					uv.codigos = baCbx.selectedItem.valor;
+				}
+				var url:URLRequest = new URLRequest("ProgramacaoServicoOficina");
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+
+
+			protected function tipoClienteCbx_changeHandler(event:ListEvent):void
+			{
+				if(jobControlCbx.selectedIndex != -1 && JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					baInternoLabel.visible = true;
+					baCbx.visible = true;
+				}else{
+					baInternoLabel.visible = false;
+					baCbx.visible = false;
+				}
+			}
+
+
+			protected function jobControlCbx_changeHandler(event:ListEvent):void
+			{
+				if(tipoClienteCbx.selectedIndex != -1 && JobControlBean(jobControlCbx.selectedItem).descricao == 'BA' && tipoClienteCbx.selectedItem.valor == 'INT'){
+					baInternoLabel.visible = true;
+					baCbx.visible = true;
+				}else{
+					baInternoLabel.visible = false;
+					baCbx.visible = false;
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="tipoClienteColl">
+		
+		<mx:Object label="Externo" valor="EXT"/>
+		<mx:Object label="Interno" valor="INT"/>
+		<mx:Object label="Todas" valor="TD"/>
+		
+	</mx:ArrayCollection>
+	<mx:ArrayCollection id="sessaoBAColl">
+		
+		<mx:Object label="BA-DVM" valor="'242','246'"/>
+		<mx:Object label="BA-Pré-entrega" valor="'241'"/>
+		<mx:Object label="BA-DMU" valor="'250','209','298','254'"/>
+		<mx:Object label="BA-Rental" valor="'297','235','292','305','304','234'"/>
+		<mx:Object label="BA-Garantia" valor="'243','247','267','268'"/>
+		<mx:Object label="BA-Interno" valor="'242','246','241','250','209','298','254','297','235','292','305','304','234','243','247','267','268'"/>
+		<mx:Object label="BA-Concessões" valor="'464','024','244','410','463'"/>
+		
+	</mx:ArrayCollection>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllHeaderList" result="onResultFindAllHeaderList(event)" />
+		<mx:method name="findAllStatusFluxoSegmentoOs" result="onResultFindAllStatusFluxoSegmentoOs(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllHeaderNext" result="onResultFindAllHeaderNext(event)" />
+		<mx:method name="findAllHeaderPrevious" result="onResultFindAllHeaderPrevious(event)" />
+		<mx:method name="findAllJobControl" result="onResultFindAllJobControl(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveObsJobControl" result="onResultSaveObsJobControl(event)" />
+	</mx:RemoteObject>	
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Fluxo do Processo Oficina" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:Label text="Tipo Cliente" x="165" y="65"/>
+	<mx:Label text="Campo Pesquisa" x="138" y="119"/>
+	<mx:Label text="Data Início" x="172" y="91"/>
+	<mx:Label text="Data Fim" x="372" y="91"/>
+	<mx:Label text="Job Control" x="169" y="39"/>
+	<mx:ComboBox id="jobControlCbx" labelField="descricao" prompt="Selecione" x="267" y="37" change="jobControlCbx_changeHandler(event)"/>
+	<mx:ComboBox id="tipoClienteCbx" prompt="Selecione" x="267" y="63" dataProvider="{tipoClienteColl}" change="tipoClienteCbx_changeHandler(event)"/>
+	<mx:Label text="BA Interno" x="384" y="65" id="baInternoLabel" visible="false"/>
+	<mx:ComboBox id="baCbx" prompt="Selecione" x="456" y="63" dataProvider="{sessaoBAColl}" visible="false"/>
+	<mx:TextInput id="campoPesquisaTxt" x="267" y="117" toolTip="Digite o Número da OS, Cliente ou Modelo!"/>
+	<mx:Button label="Pesquisar" x="267" y="142" click="pesquisarStatusSegmentosOS(event)"/>
+	<mx:Image source="img/excel.png" width="28" height="28" buttonMode="true" click="image1_completeHandler(event)" x="357" y="143"/>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" x="0" y="200">
+		<mx:HBox width="100%" id="dataHeader" >
+		</mx:HBox>
+		<mx:VBox height="543" id="statusOSVbox" width="100%" verticalScrollPolicy="auto">			
+		</mx:VBox>
+	</mx:VBox>
+	<mx:HBox width="1323" id="dataHeaderDatasHbox" visible="false" x="0" y="162" height="39" horizontalAlign="right" verticalAlign="middle">
+		<mx:Image source="img/excel.png" width="28" height="28" buttonMode="true" click="image1_completeHandler(event)"/>
+		<mx:DateField id="dataExataAgenda" change="findDataExataAgenda()"  formatString="DD/MM/YYYY"  dayNames="['D','S','T','Q','Q','S','S']"
+					  monthNames="['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+		<mx:Image source="img/previous.png" width="32" height="36" buttonMode="true" click="findAllHeaderPrevious()"/>
+		<mx:Image source="img/next.png" width="32" height="36" buttonMode="true" click="findAllHeaderNext()"/>
+	</mx:HBox>
+	<mx:DateField x="267" id="dataInicio" y="90" formatString="DD/MM/YYYY" editable="false" dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+				  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+	<mx:DateField x="435" id="dataFim" y="90" formatString="DD/MM/YYYY" editable="false" dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+				  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+	
+</mx:Canvas>

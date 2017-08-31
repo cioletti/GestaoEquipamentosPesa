@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Motivo Rejeição Criacão OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(motivoRejeicaoTxt.text == ''){
+					Alert.show("O motivo ´de rejeição é obrigatório!", "Alerta");
+					return;
+				}
+				this.close();
+			}
+		]]>
+	</mx:Script>
+
+	<mx:TextArea x="106" y="36" id="motivoRejeicaoTxt" height="90"/>
+	<mx:Button label="ok" x="170" y="146" click="button1_clickHandler(event)"/>
+</util:ModuleTitleWindow>

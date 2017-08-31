@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;	
+				gridServTercMetrologia.addEventListener("APROVAR", aprovarServTerceiros);
+				gridServTercMetrologia.addEventListener("REJEITAROFICINA", rejeitarServTerceirosOfi);
+				gridServTercMetrologia.addEventListener("REJEITARRECEPCAO", rejeitarServTerceirosRecepcao);
+				serviceController.findServTercMetrologia();
+			}
+			
+			private function onResultFindServTercMetrologia(event:ResultEvent):void{
+				gridServTercMetrologia.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function rejeitarServTerceirosRecepcao(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente rejeitar o serviço de terceiros para recepção?", "Alerta", 3, this, alertClickHandlerRejeitarServTerceirosRecepcao);				
+			}
+			
+			private function alertClickHandlerRejeitarServTerceirosRecepcao(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.popupObsRejeicaoRecepcaoServTerceiros();
+				}
+			}
+			
+			
+			private function popupObsRejeicaoRecepcaoServTerceiros():void{
+				popupObs = new PopupObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsServTerceirosRecepcao);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+			}
+			private function removePopupObsServTerceirosRecepcao(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.rejeitarServTercRecepcao(ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idTipoServicoTerceiros, ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento, popupObs.obsTextArea.text);
+				}
+			}
+			
+			
+			
+			
+			private function rejeitarServTerceirosOfi(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente rejeitar o serviço de terceiros para oficina?", "Alerta", 3, this, alertClickHandlerRejeitarServTerceirosOficina);				
+			}
+			
+			private function alertClickHandlerRejeitarServTerceirosOficina(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.popupObsRejeicaoOficServTerceiros();
+				}
+			}
+			private function aprovarServTerceiros(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente aprovar o serviço de terceiros?", "Alerta", 3, this, alertClickHandlerAprovarServTerceiros);				
+			}
+			
+			private function alertClickHandlerAprovarServTerceiros(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					if(ServicoTerceirosBean(gridServTercMetrologia.selectedItem).siglaStatusServTerceiros == 'MTR'){
+						this.popupObsServTerceirosNotaFiscal();
+					} else {
+						this.popupObsServTerceiros();
+					}
+				}
+			}
+			
+			private	var popupObs:PopupObs;
+			private function popupObsServTerceiros():void{
+				popupObs = new PopupObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsServTerceiros);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+			}
+			private	var popupObsNotafiscal:PopupObsNotaFiscal;
+			private function popupObsServTerceirosNotaFiscal():void{
+				popupObsNotafiscal = new PopupObsNotaFiscal();
+				popupObsNotafiscal.addEventListener(CloseEvent.CLOSE, removePopupObsServTerceirosNotafiscal);
+				PopUpManager.addPopUp(popupObsNotafiscal, this, true);
+				PopUpManager.centerPopUp(popupObsNotafiscal);
+				popupObsNotafiscal.init(ServicoTerceirosBean(gridServTercMetrologia.selectedItem), this.urlLogin);
+			}
+			private function removePopupObsServTerceiros(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.aprovarServTercMetrologia(ServicoTerceirosBean(gridServTercMetrologia.selectedItem), ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento, popupObs.obsTextArea.text);
+				}
+			}
+			private function removePopupObsServTerceirosNotafiscal(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObsNotafiscal.click == true){
+					serviceController.aprovarServTercMetrologia(ServicoTerceirosBean(gridServTercMetrologia.selectedItem), ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento, popupObsNotafiscal.obsTextArea.text);
+				}
+			}
+			private function popupObsRejeicaoOficServTerceiros():void{
+				popupObs = new PopupObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsServTerceirosOficina);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+			}
+			private function removePopupObsServTerceirosOficina(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.rejeitarServTercOficina(ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idTipoServicoTerceiros, ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento, popupObs.obsTextArea.text);
+				}
+			}
+			
+			private function onResultAprovarServTercMetrologia(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Aprovação realizada com sucesso!", "Alerta");
+					serviceController.findServTercMetrologia();
+					return;
+				}
+				Alert.show("Erro ao tentar realizar a aprovação!", "Erro");
+				return;
+			}
+			private function onResultRejeitarServTercOficina(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Rejeição para oficina realizada com sucesso!", "Alerta");
+					serviceController.findServTercMetrologia();
+					return;
+				}
+				Alert.show("Erro ao tentar realizar a Rejeição!", "Erro");
+				return;
+			}
+			private function onResultRejeitarServTercRecepcao(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Rejeição para recepção realizada com sucesso!", "Alerta");
+					serviceController.findServTercMetrologia();
+					return;
+				}
+				Alert.show("Erro ao tentar realizar a Rejeição!", "Erro");
+				return;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findServTercMetrologia" result="onResultFindServTercMetrologia(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="aprovarServTercMetrologia" result="onResultAprovarServTercMetrologia(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="rejeitarServTercOficina" result="onResultRejeitarServTercOficina(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="rejeitarServTercRecepcao" result="onResultRejeitarServTercRecepcao(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Serviços de Terceiros Metrologia" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="37" width="100%" height="100%" id="gridServTercMetrologia">
+		<mx:columns>
+			<mx:DataGridColumn headerText="OS" dataField="numeroOs"/>
+			<mx:DataGridColumn headerText="Segmento" dataField="numeroSegmento"/>
+			<mx:DataGridColumn headerText="Job Control" dataField="jobControl"/>
+			<mx:DataGridColumn headerText="Fornecedor" dataField="descricaoFornecedor"/>
+			<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+			<mx:DataGridColumn headerText="QTD." dataField="qtdServTerceiros"/>
+			<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+			<mx:DataGridColumn headerText="Obs">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:TextArea text="{data.obs}"/>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Status" dataField="statusServTerceiros"/>
+			<mx:DataGridColumn headerText="Aprovar" dataField="aprovar">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/confirm.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('APROVAR', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Rejeitar&#13;Recepção" dataField="rejeitar">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/reject.png" width="15" buttonMode="true" visible="{(data.siglaStatusServTerceiros == 'MTR')?false:true}" height="15"  click="{dispatchEvent(new Event('REJEITARRECEPCAO', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Rejeitar&#13;Oficina" dataField="rejeitar">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/reject.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('REJEITAROFICINA', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

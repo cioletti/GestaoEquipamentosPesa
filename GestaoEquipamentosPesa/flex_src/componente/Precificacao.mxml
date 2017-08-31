@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*" xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.ComplexidadeBean;
+			import bean.FamiliaBean;
+			import bean.JobCodeBean;
+			import bean.ModeloBean;
+			import bean.PrecoBean;
+			import bean.PrefixoBean;
+			import bean.TreeBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			
+			public var cptcd:popUpCptcd;
+			public var jbcd:PopUpJbcd;
+			public var clonarpopup:PopUpClonar;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var precoBean:PrecoBean = new PrecoBean();
+			private var prefixoBean: PrefixoBean = new PrefixoBean();
+			private var filtro:FileFilter = new FileFilter("Selecione o CSV(*.csv;)", "*.csv;");
+			private var uploadFile: FileReference;
+			private var tipoTree:String = 'GE';
+			[Bindable]
+			private var listPrefixo:ArrayCollection = new ArrayCollection();
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			private var usuario:UsuarioBean;
+			
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				this.usuario = usuario;
+				precificacaoGrid.addEventListener("EXCLUIRCADPRECO", removerCadPreco);
+				this.urlLogin = urlLogin;
+				var che:CheckinBean = new CheckinBean();
+				myValidators = new Array();
+				myValidators.push(campoCompCode);
+				myValidators.push(campoHoras);
+				myValidators.push(campoComplexidadeCbx);
+				myValidators.push(campoModeloCbx);
+				myValidators.push(campoPrefixoCbx);
+				myValidators.push(campoJobCodeCbx);
+				serviceController.findAllFamilia();
+//				serviceController.findAllModelo();
+				//serviceController.findAllPrefixo();
+				serviceController.findAllJobCode();
+				serviceController.findAllComplexidade();
+				//serviceController.findAllPreco();
+				//if(usuario.siglaPerfil == 'SUPER' || usuario.siglaPerfil == 'RECP'){
+				if(usuario.siglaPerfil != 'ADM' && usuario.siglaPerfil != 'SUPER'){
+					buttonsHbox.visible = false;
+				}
+				if(usuario.siglaPerfil == 'ORC' || usuario.siglaPerfil == 'ORCA' || usuario.siglaPerfil == 'RECP'){
+					buttonsHbox.visible = true;
+				}
+			}
+			
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = event.result;
+			}
+			
+			private function removerCadPreco (ev: Event):void{	
+				if(usuario.siglaPerfil != 'ADM'){
+					Alert.show("Somente o administrador pode remover uma precificação!", "Alerta");
+					return;
+				}
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					precoBean =  PrecoBean(precificacaoGrid.selectedItem);
+					serviceController.removerCadPreco(precoBean);					
+				}
+			}
+			private function onResultRemoverCadPreco(event: ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Cadastro excluído com sucesso.");					
+					ArrayCollection(precificacaoGrid.dataProvider).removeItemAt(precificacaoGrid.selectedIndex);
+					//serviceController.findPrecoModPre(PrefixoBean(prefixoCbx.selectedItem).id,TreeBean(modeloCbx.selectedItem).idArv);
+				}else{
+					Alert.show("Ocorreu um erro ao excluir o cadastro!");
+				}				
+			}
+			private function savePrecificacao():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {				
+					if(cptcd.cptcd != "" && cptcd.cptcd != null){
+						precoBean.compCode = cptcd.cptcdCode;
+						var array:Array = cptcd.cptcdDescricao.split(" - ");
+						precoBean.descricaoCompCode = array[1];
+					}else {
+						var descComp:Array = compCode.text.split(" - ");
+						precoBean.descricaoCompCode = descComp[1];					
+						precoBean.compCode = descComp[0];
+					}
+					
+					if(jbcd != null && (jbcd.jbcd != "" && jbcd.jbcd != null)){
+						precoBean.jobCode = jbcd.jbcdCode;
+						var arrayJob:Array = jbcd.jbcdDescricao.split(" - ");
+						precoBean.descricaoJobCode = arrayJob[1];
+					}else {
+						var descJob:Array = jobcdText.text.split("-");
+						precoBean.descricaoJobCode = descJob[1];					
+						precoBean.jobCode = descJob[0];
+					}					
+					
+					precoBean.idComplexidade = ComplexidadeBean (complexidadeCbx.selectedItem).id;
+					//precoBean.jobCode = JobCodeBean (jobCodeCbx.selectedItem).id;
+					//precoBean.descricaoJobCode = JobCodeBean (jobCodeCbx.selectedItem).descricao;
+					
+					precoBean.idModelo = TreeBean(modeloCbx.selectedItem).idArv;
+					precoBean.idPrefixo = PrefixoBean(prefixoCbx.selectedItem).id;
+					precoBean.descricaoServico = descricaoServico.text;
+//					var horas:Array = qtdHoras.text.split(":");
+//					if(qtdHoras.text != "" && horas.length > 1){
+//						var horasAux:String = horas[1].toString();
+//						if(horasAux.length < 2){
+//							Alert.show("Hora invalida!", "Alerta");
+//							qtdHoras.text = "";	
+//							return;				
+//						}
+//					}else{
+//						qtdHoras.text = "00:00";
+//					}
+					precoBean.qtdHoras = qtdHoras.text;					
+					serviceController.saveOrUpdate(precoBean);										
+				} else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			private function onResultSaveOrUpdate (event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Precificação salva com sucesso!", "Alerta");	
+					//serviceController.findAllPreco();
+					serviceController.findPrecoModPre(PrefixoBean(prefixoCbx.selectedItem).id,TreeBean(modeloCbx.selectedItem).idArv);
+					return;
+				}else{
+					Alert.show("Erro ao salvar precificação!", "Alerta");
+				}
+			}
+			private function onResultFindAllModelo (event:ResultEvent):void{
+				modeloCbx.dataProvider = event.result;
+			}
+			private function onResultFindAllPrefixo (event:ResultEvent):void{
+				prefixoCbx.dataProvider = null;
+				listPrefixo.removeAll();
+				listPrefixo.addAll(event.result as ArrayCollection);
+				prefixoCbx.dataProvider = listPrefixo;
+				if(PrecoBean(precificacaoGrid.selectedItem) != null){
+					var prefixoList:ArrayCollection = ArrayCollection(prefixoCbx.dataProvider);
+					for(var i:int=0; i < prefixoList.length; i++){
+						var pre:PrefixoBean = PrefixoBean(prefixoList.getItemAt(i));
+						if(pre.id == PrecoBean(precificacaoGrid.selectedItem).idPrefixo){
+							prefixoCbx.selectedIndex = i;
+							break;
+						}
+					}
+				}
+			}
+			
+			private function onResultFindAllPreco (event:ResultEvent):void{
+				precificacaoGrid.dataProvider = ArrayCollection(event.result);
+			}
+//			private function onResultFindAllJobCode(event:ResultEvent):void{
+//				jobCodeCbx.dataProvider = event.result;
+//				
+//			}
+			private function onResultFindComplexidade(event:ResultEvent):void{
+				complexidadeCbx.dataProvider = event.result;
+				
+			}
+			private function onResultFindPrecoModPre (event:ResultEvent):void{
+				precificacaoGrid.dataProvider = ArrayCollection(event.result);
+			}
+			private function popupCptcd(): void{
+				cptcd = new popUpCptcd();
+				cptcd.addEventListener(CloseEvent.CLOSE, removePopUpCptcd);
+				PopUpManager.addPopUp(cptcd,this,true);
+				PopUpManager.centerPopUp(cptcd)
+				cptcd.init(urlLogin);			
+			}
+			private function removePopUpCptcd(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if (cptcd.cptcd != null){					
+					compCode.text = cptcd.cptcdDescricao;
+				}
+			}
+			
+			protected function qtdHoras_changeHandler(event:Event):void
+			{
+				
+				if(qtdHoras.text.length > 3 && qtdHoras.text.substr(qtdHoras.text.length - 1, qtdHoras.text.length - 1) != ":"){
+					var array:Array = qtdHoras.text.split(":");
+					if(array.length == 1 ){
+						qtdHoras.text = qtdHoras.text.substr(0, qtdHoras.text.length - 1);
+						if(qtdHoras.text.length > 3){
+							Alert.show("Hora invalida!", "Alerta");
+							qtdHoras.text = "";
+							return;						
+						}
+					}
+				}
+				if(qtdHoras.text.length ==  1 && qtdHoras.text == ":"){
+					qtdHoras.text = '';
+				}
+				if(qtdHoras.text.substr(qtdHoras.text.length - 1, qtdHoras.text.length - 1) == ":"){
+					if(qtdHoras.text.length > 5){
+						qtdHoras.text = qtdHoras.text.substr(0, qtdHoras.text.length - 1);
+					}
+				}
+				if(qtdHoras.text.length >= 5){
+					var array:Array = qtdHoras.text.split(":");	
+					var aux:String = array[1].toString();
+					var temp:Number =  Number(aux.charAt(0));
+					var horasAux:String = array[0].toString();
+					
+					if(temp >=6 && array[1] > 59 || aux.length > 2){
+						Alert.show("Não é possível incluir minutos maior que 59!", "Alerta");
+						qtdHoras.text = array[0]+":";						
+					}			
+					
+					if(horasAux.length > 3){
+						Alert.show("Não é possível incluir hora maior que 999!", "Alerta");
+						qtdHoras.text = "";	
+					}if(horasAux.length == 3){
+						if(horasAux.charAt(0) == "0"){
+							Alert.show("Hora invalida!", "Alerta");
+							qtdHoras.text = "";
+							return;
+						}
+					}					
+				}if(qtdHoras.text.length > 6){
+					Alert.show("Hora invalida!", "Alerta");
+					qtdHoras.text = "";	
+				}
+			}
+			
+			private function formatHourFocusOut():void{
+				if(qtdHoras.text.length > 0 && qtdHoras.text.length == 4 || qtdHoras.text.length == 3){
+					var array:Array = qtdHoras.text.split(":");
+					if(array.length > 1){
+						if(array[1].toString().length == 1){
+							qtdHoras.text = array[0]+":0"+array[1];
+						}
+					}
+				} 
+			}
+			private function onChangeModelo(event:ListEvent):void{
+				prefixoBean = new PrefixoBean();
+				serviceController.findAllPrefixo(TreeBean(modeloCbx.selectedItem).idArv);
+				this.novoChange();
+			}
+			
+			private function onChangePrefixo(event:ListEvent):void{
+				//prefixoBean = new PrefixoBean();
+				serviceController.findPrecoModPre(PrefixoBean(prefixoCbx.selectedItem).id,TreeBean(modeloCbx.selectedItem).idArv);
+				this.novoChange();
+				imgClonar.visible = true;
+			}	
+			
+			private function adicionarArquivo():void {
+				var msg:String = '';
+				if(modeloCbx.selectedIndex == -1){
+					msg = 'Selecione um modelo\n';	
+				}
+				if(prefixoCbx.selectedIndex == -1){
+					msg = 'Selecione um prefixo';
+				}
+				if(msg.length > 0){
+					Alert.show(msg, "Alerta");
+					return;
+				}
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivo);
+			}
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			private function tratarArquivo(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);				
+				
+				var idModelo:Number = TreeBean(modeloCbx.selectedItem).idArv;
+				var idPrefixo:Number = PrefixoBean(prefixoCbx.selectedItem).id;				
+				
+				serviceController.fazerUploadCsv(data, idModelo, idPrefixo);
+			}
+			private function onResultFazerUploadCsv(event:ResultEvent):void {
+				if(event.result != null){
+					Alert.show("Configuração do builder salva com sucesso!", "Alerta");
+					serviceController.findAllPreco();
+				}else{
+					Alert.show("Não foi possível salvar configuração do Builder!", "Alerta");
+				}
+			}
+			private function gridDoubleClick():void{
+				if(precificacaoGrid.selectedItem != null){
+					precoBean =  PrecoBean(precificacaoGrid.selectedItem);
+					this.selectedModelo();
+					
+					//this.selectedJobCode();
+					compCode.text = precoBean.descricaoCompCode;
+					jobcdText.text = precoBean.jobCodeDescricao;
+					qtdHoras.text = precoBean.qtdHoras;
+					descricaoServico.text = precoBean.descricaoServico;
+					this.selectedCoplexidade();	
+				}
+			}
+			private function selectedCoplexidade():void{
+				var complexidadeList:ArrayCollection = ArrayCollection(complexidadeCbx.dataProvider);
+				for(var i:int=0; i < complexidadeList.length; i++){
+					var comp:ComplexidadeBean = ComplexidadeBean(complexidadeList.getItemAt(i));
+					if(comp.id == PrecoBean(precificacaoGrid.selectedItem).idComplexidade){
+						complexidadeCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var mod:TreeBean = TreeBean(modeloList.getItemAt(i));
+					if(mod.idArv == PrecoBean(precificacaoGrid.selectedItem).idModelo){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}				
+				serviceController.findAllPrefixo(TreeBean(modeloCbx.selectedItem).idArv);
+				cptcd = new popUpCptcd();
+				cptcd.cptcd = "";
+			}
+//			private function selectedJobCode():void{
+//				var jobCodeList:ArrayCollection = ArrayCollection(jobCodeCbx.dataProvider);
+//				for(var i:int=0; i < jobCodeList.length; i++){
+//					var job:JobCodeBean = JobCodeBean(jobCodeList.getItemAt(i));
+//					var aux:Array = job.label.split(" - ");
+//					if(aux[0] == PrecoBean(precificacaoGrid.selectedItem).jobCode){
+//						jobCodeCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+			
+			private function mostrarToolTip(item: Object):String{
+				var str:String = "";
+				
+				if ((item != null) && (item.descricaoServico != null) && (item.descricaoServico != "")) 
+				{
+					str = "DESCRIÇÃO SERVIÇO: " + item.descricaoServico + "\n";
+				}
+				return str;
+			}
+			
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{				
+				serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+				this.novoChange();
+				prefixoCbx.selectedIndex = -1;
+			}
+			
+			private function onResultFindAllTreePai(event:ResultEvent):void{				
+				
+				modeloCbx.dataProvider = null;
+				listPaiTree.removeAll();
+				listPaiTree.addAll(event.result as ArrayCollection);
+				modeloCbx.dataProvider = listPaiTree;
+				//this.novo();
+				
+			}
+			
+			private function novo():void{
+				precoBean = new PrecoBean();
+				prefixoBean = new PrefixoBean();
+				//familiaCbx.selectedItem = -1;
+				//modeloCbx.selectedIndex = -1;
+				//prefixoCbx.selectedIndex = -1;
+				jobcdText.text = "";
+				compCode.text = "";
+				qtdHoras.text = "";
+				complexidadeCbx.selectedIndex = -1;
+				descricaoServico.text = "";
+				precificacaoGrid.dataProvider = null;
+//				
+//				jobCodeCbx;
+//				compCode.text = "";				
+//				qtdHoras.text = "";
+//				descricaoServico.text = ";
+				//this.selectedCoplexidade();
+			}
+			private function novoChange():void{
+				precoBean = new PrecoBean();
+				prefixoBean = new PrefixoBean();
+				//familiaCbx.selectedItem = -1;
+				//modeloCbx.selectedIndex = -1;
+				//prefixoCbx.selectedIndex = -1;
+				jobcdText.text = "";
+				compCode.text = "";
+				qtdHoras.text = "";
+				complexidadeCbx.selectedIndex = -1;
+				descricaoServico.text = "";
+				precificacaoGrid.dataProvider = null;
+//				
+//				jobCodeCbx;
+//				compCode.text = "";				
+//				qtdHoras.text = "";
+//				descricaoServico.text = ";
+				//this.selectedCoplexidade();
+			}
+			
+			private function popupClonar():void{
+				clonarpopup = new PopUpClonar();
+				clonarpopup.addEventListener(CloseEvent.CLOSE, removePopUpClonar);
+				PopUpManager.addPopUp(clonarpopup,this,true);
+				PopUpManager.centerPopUp(clonarpopup);
+				clonarpopup.init(urlLogin, PrefixoBean(prefixoCbx.selectedItem), TreeBean(modeloCbx.selectedItem), FamiliaBean(familiaCbx.selectedItem));				
+				
+			}
+			
+			private function removePopUpClonar(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				
+			}
+			
+			
+			private function popupJbcd(): void{
+				jbcd = new PopUpJbcd();
+				jbcd.addEventListener(CloseEvent.CLOSE, removePopUpJbcd);
+				PopUpManager.addPopUp(jbcd,this,true);
+				PopUpManager.centerPopUp(jbcd)
+				jbcd.init(urlLogin);	
+			}
+			private function removePopUpJbcd(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if (jbcd.jbcd != null){
+					jobcdText.text = jbcd.jbcdDescricao;
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelo" result="onResultFindAllModelo(event)" />
+		<mx:method name="findAllPrefixo" result="onResultFindAllPrefixo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllJobCode" result="onResultFindAllJobCode(event)"/-->
+		<mx:method name="findAllPreco" result="onResultFindAllPreco(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllComplexidade" result="onResultFindComplexidade(event)" />
+		<mx:method name="fazerUploadCsv" result="onResultFazerUploadCsv(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerCadPreco" result="onResultRemoverCadPreco(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findPrecoModPre" result="onResultFindPrecoModPre(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTreePai" result="onResultFindAllTreePai(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:StringValidator id="campoCompCode" requiredFieldError="Este campo  obrigatório!" required="true" source="{compCode}" property="text" />
+	<mx:StringValidator id="campoJobCodeCbx" requiredFieldError="Este campo  obrigatório!" required="true" source="{jobcdText}" property="text" />
+	<mx:StringValidator id="campoHoras" requiredFieldError="Este campo  obrigatório!" required="true" source="{qtdHoras}" property="text" />
+	<mx:NumberValidator id="campoComplexidadeCbx" source="{complexidadeCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoPrefixoCbx" source="{prefixoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<!--mx:NumberValidator id="campoJobCodeCbx" source="{jobCodeCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" /-->
+	
+	<mx:VBox width="100%" height="100%" horizontalAlign="center">
+		<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+			<mx:Label text="Precificação Equipamentos" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:HBox width="100%" horizontalAlign="center" >		
+			<mx:Form >
+				<mx:FormItem label="Família" required="false" width="379">
+					<mx:ComboBox id="familiaCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandler(event)"></mx:ComboBox>
+				</mx:FormItem>
+				<mx:FormItem label="Modelo" width="377" height="25">			
+					<mx:ComboBox id="modeloCbx" prompt="Selecione" labelField="descricao" change="onChangeModelo(event)"> </mx:ComboBox>
+				</mx:FormItem>
+				<mx:FormItem label="Prefixo" width="100%" height="25" >
+					<mx:ComboBox id="prefixoCbx" prompt="Selecione" labelField="descricao" change="onChangePrefixo(event)"></mx:ComboBox>
+				</mx:FormItem>
+				
+
+				<!--mx:FormItem label="Job Code" >			
+					<mx:ComboBox id="jobCodeCbx" prompt="Selecione" labelField="label"> </mx:ComboBox>
+				</mx:FormItem-->
+				<mx:FormItem label="Job.Code:" width="370" borderStyle="solid" cornerRadius="5" borderColor="#FFCC33">			
+					<mx:TextInput width="228" id="jobcdText" enabled="false" maxChars="255"/>
+					<mx:Button label="Pesquisar" height="20" click="popupJbcd()"/>
+				</mx:FormItem>
+				<mx:FormItem label="Comp.Code" width="370" borderStyle="solid" cornerRadius="5" borderColor="#FFCC33">			
+					<mx:TextInput width="228" id="compCode" enabled="false" maxChars="255"/>
+					<mx:Button label="Pesquisar" height="20" click="popupCptcd()"/>
+				</mx:FormItem>
+			</mx:Form>
+				
+			<mx:Form height="208">
+				<mx:FormItem label="Quant. Horas" width="265">
+					
+					<!--mx:TextInput id="qtdHoras" maxChars="6"  change="qtdHoras_changeHandler(event)" focusOut="formatHourFocusOut()" restrict="0-9:"/-->
+					<control:DecimalInput editable="true"  id="qtdHoras" width="93" maxChars="6"  precision="2" currencyFormat="us" useThousandsSeparator="true"/>
+				</mx:FormItem>	
+				<mx:FormItem label="Complexidade" width="370">			
+					<mx:ComboBox id="complexidadeCbx" prompt="Selecione" labelField="descricaoSigla"> </mx:ComboBox>
+				</mx:FormItem>
+				
+				<mx:FormItem label="Descrição Serviço:" >
+					<mx:TextArea width="269" height="108" maxChars="255" id="descricaoServico" />
+				</mx:FormItem>
+				
+			</mx:Form>
+			
+			
+		</mx:HBox>
+		
+		<mx:HBox horizontalAlign="center" width="100%" height="40" verticalAlign="middle" id="buttonsHbox">
+			<mx:Button label="Salvar" height="20" click="savePrecificacao()"/>
+			<mx:Button label="Novo" click="novo()"/>
+			<mx:Button label="Importar CSV Builder" click="adicionarArquivo()"/>
+			<mx:Button label="Clonar Preço" id="imgClonar" visible="false" buttonMode="true" click="popupClonar()"/>
+		</mx:HBox>
+		
+		<mx:DataGrid height="100%" width="100%" dataTipFunction="mostrarToolTip" doubleClick="gridDoubleClick()" doubleClickEnabled="true" id="precificacaoGrid">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Modelo" dataField="modeloStr" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Prefixo" dataField="prefixoStr" showDataTips="true"/>
+				<mx:DataGridColumn headerText="JobCode" dataField="jobCodeDescricao" showDataTips="true"/>
+				<mx:DataGridColumn headerText="CompCode" dataField="descricaoCompCode" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Qtd Horas" dataField="qtdHoras" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Complexidade" dataField="complexidadeStr" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Excluir" dataField="excluir">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRCADPRECO', true)) }" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>	
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>	
+	
+</mx:Canvas>

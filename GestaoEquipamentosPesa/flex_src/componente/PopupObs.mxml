@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" title="Observação" layout="absolute" width="400" height="300">
+	<mx:Script>
+		<![CDATA[
+			import bean.SegmentoBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			public var click:Boolean = false;
+			
+			public function init():void{
+				click = false;
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(obsTextArea.text == ""){
+					Alert.show("O campo observação é obrigatório!", "Alerta");
+					return;
+				}
+				click = true;
+				this.close();
+			}
+
+		]]>
+	</mx:Script>
+	<mx:Button x="153" y="235" label="Ok" click="button1_clickHandler(event)"/>
+	<mx:TextArea x="10" y="23" width="352" height="204" id="obsTextArea"/>
+	
+</util:ModuleTitleWindow>

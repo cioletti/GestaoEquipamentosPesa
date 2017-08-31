@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Editar Segmento" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="568" height="252" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.SegmentoBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var segmentoBean:SegmentoBean;
+			private var idCheckIn:Number;
+			public function init(urlLogin:String, segmentoBean:SegmentoBean, idCheckIn:Number):void{
+				this.urlLogin = urlLogin;
+				this.segmentoBean = segmentoBean;
+				this.idCheckIn = idCheckIn;
+			}
+			private function alterHoursSegmentoDbs():void{
+				//if(horasSegmento.text == '' || qtdCompText.text == '' || horasSegmento.text == '0.00'){
+				if(horasSegmento.text == '' || qtdCompText.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				segmentoBean.horasSubst = horasSegmento.text;
+				segmentoBean.qtdCompSubst = Number(qtdCompText.text);
+				serviceController.alterHoursSegmentoDbs(segmentoBean, idCheckIn);
+			}
+			
+			private function onResultAlterHoursSegmentoDbs(event:ResultEvent):void{
+				Alert.show(""+event.result, "Alerta");
+				this.close();
+			}
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="alterHoursSegmentoDbs" result="onResultAlterHoursSegmentoDbs(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Form x="117.5" y="35" width="305">
+		<mx:FormItem label="H. Segmento:" width="273" height="25">
+			<control:DecimalInput editable="true"  id="horasSegmento" width="63" maxChars="6" enabled="true"  precision="2" currencyFormat="us" useThousandsSeparator="true"/>
+		</mx:FormItem>
+		<mx:FormItem label="Qtd. Comp&#xa;:" width="273" height="25">
+			<mx:TextInput width="63" restrict="[0-9]" maxChars="5" id="qtdCompText"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Button x="236.5" y="170" label="Alterar" click="alterHoursSegmentoDbs()"/>
+	
+</util:ModuleTitleWindow>

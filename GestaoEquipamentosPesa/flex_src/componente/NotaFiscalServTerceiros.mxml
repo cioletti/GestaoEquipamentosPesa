@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			public function init(urlLogin:String, urlReport:String):void{
+				this.urlLogin = urlLogin;
+				this.urlReport = urlReport;
+				//gridNotaFiscal.addEventListener("LIBERAR", aprovarServTerceiros);
+				serviceController.findServTercNotaFiscal("");
+			}
+			
+			private function onResultFindServTercNotaFiscal(event:ResultEvent):void{
+				gridNotaFiscal.dataProvider = ArrayCollection(event.result);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				serviceController.findServTercNotaFiscal(campoPesquisa.text);
+			}
+			
+			private function aprovarServTerceiros(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente liberar o serviço de terceiros para recepção?", "Alerta", 3, this, alertClickHandlerAprovarServTerceiros);				
+			}
+			
+			private function alertClickHandlerAprovarServTerceiros(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+						this.popupObsServTerceiros();
+				}
+			}
+			
+			private var popupObs:PopupAnexarAquivoObs;
+			private function popupObsServTerceiros():void{
+				popupObs = new PopupAnexarAquivoObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsServTerceiros);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+				popupObs.init(ServicoTerceirosBean(gridNotaFiscal.selectedItem), this.urlLogin, this.urlReport);
+			}
+			
+			private function removePopupObsServTerceiros(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.aprovarServTercRecepcao(ServicoTerceirosBean(gridNotaFiscal.selectedItem), ServicoTerceirosBean(gridNotaFiscal.selectedItem).idSegmento, popupObs.obsTextArea.text);
+				}
+			}
+			private function onResultAprovarMetrologia(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Serviço de terceiros enviado para Recepção!", "Alerta");
+					serviceController.findServTercNotaFiscal(campoPesquisa.text);
+				}else{
+					Alert.show("Erro ao tentar liberar Serviço de Terceiros para recepção!", "Alerta");
+				}
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findServTercNotaFiscal" result="onResultFindServTercNotaFiscal(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="aprovarServTercRecepcao" result="onResultAprovarMetrologia(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Solicitação de Nota Fiscal" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="65" width="100%" height="100%" id="gridNotaFiscal" doubleClickEnabled="true" doubleClick="popupObsServTerceiros()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Cod.&#13;Fornecedor" dataField="codigoFornecedor"/>
+			<mx:DataGridColumn headerText="Fornecedor" dataField="descricaoFornecedor"/>
+			<mx:DataGridColumn headerText="Status" dataField="statusServTerceiros"/>
+			<mx:DataGridColumn headerText="Solicitado&#13;por" dataField="enviadoPor"/>
+			<mx:DataGridColumn headerText="Data&#13;Solicitação" dataField="dataAbertura"/>
+			<!--mx:DataGridColumn headerText="Liberar&#13;Recepção" dataField="liberar">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/confirm.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('LIBERAR', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn-->
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:TextInput x="20" y="37" id="campoPesquisa"/>
+	<mx:Button x="188" y="37" label="Pesquisar" click="button1_clickHandler(event)" toolTip="Pesquisar por: Tipo de Serviço de Terceiros, Código do Fornecedor, Nome Fornecedor ou CPJ."/>
+	
+</mx:Canvas>

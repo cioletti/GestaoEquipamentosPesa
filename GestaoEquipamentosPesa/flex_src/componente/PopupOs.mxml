@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Transferir Serviços de Terceiros para a OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="364" height="234">
+	<mx:Button x="133.5" y="119" label="Substituir" click="button1_clickHandler(event)"/>
+	<mx:Script>
+		<![CDATA[
+			import bean.SegmentoBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var segmentoBean:SegmentoBean;
+			private var idCheckIn:Number;
+			public var wasTransfer:Boolean = false;
+			public function init(urlLogin:String, segmentoBean:SegmentoBean, idCheckIn:Number):void{
+				this.urlLogin = urlLogin;
+				this.segmentoBean = segmentoBean;
+				this.idCheckIn = idCheckIn;
+				serviceController.verificarServicoTerceiros(this.segmentoBean);
+			}
+			
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(numOsText.text == ''){
+					Alert.show("O campo número da OS é obrigatório!","Alerta");
+					return;
+				}
+				serviceController.transferirServicoTerceiros(this.segmentoBean, numOsText.text);
+			}
+			
+			private function onResultTransferirServicoTerceiros(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					wasTransfer = true;
+					Alert.show("Serviços de terceiros transferido com sucesso!","Alerta");
+				}else{
+					Alert.show("Não foi possível transferir Serviços de terceiros, verifique se a OS informada possui o segmento 46!","Alerta");
+					wasTransfer = false;
+				}
+				this.close();
+			}
+			private function onResultVerificarServicoTerceiros(event:ResultEvent):void{
+				if(Boolean(event.result) == false){
+					wasTransfer = false;
+					Alert.show("Não existe serviços de terceiros no segmento!","Alerta");
+					this.close();
+				}
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="transferirServicoTerceiros" result="onResultTransferirServicoTerceiros(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="verificarServicoTerceiros" result="onResultVerificarServicoTerceiros(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	<mx:Label x="58.5" y="65" text="OS"/>
+	<mx:TextInput x="101.5" y="64" id="numOsText"/>
+</util:ModuleTitleWindow>

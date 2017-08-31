@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Criar OS Estimada" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="850" height="430" xmlns:componente="componente.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.BgrpBean;
+			import bean.CheckinBean;
+			import bean.FilialBean;
+			import bean.GestaoEquipamentosBean;
+			import bean.JobCodeBean;
+			import bean.JobControlBean;
+			import bean.OperacaoBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.ProgressBar;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			private var numeroOs:String;
+			private var cliente:String;
+			private var serie:String;
+			private var idCkeckIn:Number;
+			private var checkInObj:CheckinBean;
+			private var IdosPalm:Number;
+			public var segmentoObjeto:CriarOperacao;
+			private var operacao:SegmentoBean;
+			private var usuarioBean:UsuarioBean;
+			private var isRecebedor:Boolean;			
+		 
+			public function init(urlLogin:String, numeroOs:String, cliente:String, serie:String, idCkeckIn:Number, checkInObj:CheckinBean,IdosPalm:Number, usuarioBean:UsuarioBean, isRecebedor:Boolean):void{
+				this.checkInObj = checkInObj;
+				this.numeroOs = numeroOs;
+				this.urlLogin = urlLogin;
+				this.cliente = cliente;
+				this.serie = serie;
+				this.idCkeckIn = idCkeckIn;
+				this.IdosPalm = IdosPalm;
+				this.usuarioBean = usuarioBean;
+				this.isRecebedor = isRecebedor;
+				serviceController.findAllFiliais();
+				serviceController.findAllJobControl();
+				serviceController.findAllJobCode();		
+				estimateBy.text = usuarioBean.estimateBy;
+				horimetroTxt.text = checkInObj.horimetro;
+				//serviceController.findEstimateBy();
+//				if(checkInObj.modelo == 'WP1550V'){
+//					make.text = 'ZZ';
+//				}
+				
+				
+				centroDeCustoContaContabil.addEventListener("REGRAVALIDA", resizeCanvas);
+				centroDeCustoContaContabil.addEventListener("APROVARPOPUP", fecharPopup);
+				centroDeCustoContaContabil.init(this.urlLogin, checkInObj, this.usuarioBean);
+				
+				numeroSerie.text = serie;
+//				if(gestaoEquipamentosBean.segmentoList.length > 0 && (numeroOs == null || numeroOs == '')){
+//					criarOs.enabled = true						
+//				}				
+			}
+			public function init2(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				
+			}
+			private function fecharPopup(ev: Event):void
+			{
+				this.close(null);
+			}
+			private function resizeCanvas(ev: Event):void
+			{
+				centroDeCustoCanvas.height = 0;
+				centroDeCustoCanvas.width = 0;
+				
+				osCanvas.percentHeight = 100;
+				osCanvas.percentWidth = 100;
+				this.setDataOsEstimada();
+			}
+			
+			private function onResultFindAllFiliais(event:ResultEvent):void{
+				filialCbx.dataProvider = event.result;
+				this.fixFilial();
+			}
+			private function onResultFindAllJobControl(event:ResultEvent):void{
+				jobControlCbx.dataProvider = event.result;
+				this.fixJobControl();
+			}
+//			private function onResultFindAllJobCode(event:ResultEvent):void{
+//				jobCodeCbx.dataProvider = event.result;
+//				this.fixJobCode();
+//			}
+//			private function onResultFindEstimateBy(event:ResultEvent):void{
+//				estimateBy.text = event.result as String;
+//			}
+			
+			private function onValidarNumSerie(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					if(filialCbx.selectedIndex == -1 || jobControlCbx.selectedIndex == -1 || codigoCliente.text == ''
+						|| estimateBy.text == '' || make.text == '' || numeroSerie.text == '' || horimetroTxt.text == '' ){// || jobCodeCbx.selectedIndex == -1 || segmento.text == ''(Reirado)
+						Alert.show("Todos os campos são de preenchimento obrigatórios!", "Alerta");
+						//ProgressBarHelper.removeProgressBar();
+						return;
+					}
+//					if(gestaoEquipamentosBean.segmentoList == null || gestaoEquipamentosBean.segmentoList.length == 0){
+//						ProgressBarHelper.removeProgressBar();
+//						Alert.show("Não é permitido criar OS sem segmento","Alerta");
+//						return;
+//					}
+					
+					segmentoObj = new CriarSegmentoOS();
+					//gridLinha1 = new SegmentoBean();
+					//gridLinha2 = new SegmentoBean();				
+					segmentoObj.addEventListener(CloseEvent.CLOSE, removePopUpSegmento);
+					PopUpManager.addPopUp(segmentoObj,this,true);
+					PopUpManager.centerPopUp(segmentoObj)
+														
+					//				segmentoObj.hBoxButtonsSegmento.visible = false;
+					//				segmentoObj.hBoxButtonsSegmento.includeInLayout = false;
+					if(isRecebedor == true){ // tela de segmento
+						segmentoObj.sendPecasDbs.visible = false;
+						segmentoObj.sendPecasDbs.includeInLayout = false;					
+						segmentoObj.pendenciasDePecas.visible = false;
+						segmentoObj.pendenciasDePecas.includeInLayout = false;					
+						segmentoObj.verificaPecas.visible = false;
+						segmentoObj.verificaPecas.includeInLayout = false;			
+					}
+					
+					gestaoEquipamentosBean.idCheckIn = this.idCkeckIn;
+					gestaoEquipamentosBean.filial = filialCbx.selectedItem.stno.toString();
+					gestaoEquipamentosBean.jobControl = JobControlBean(jobControlCbx.selectedItem).descricao;
+					gestaoEquipamentosBean.codigoCliente = codigoCliente.text;
+					gestaoEquipamentosBean.nomeCliente = centroDeCustoContaContabil.nomeCliente;
+					gestaoEquipamentosBean.estimateBy = estimateBy.text;
+					gestaoEquipamentosBean.make = make.text;
+					gestaoEquipamentosBean.numeroSerie = numeroSerie.text.toUpperCase();
+					gestaoEquipamentosBean.horimetro = horimetroTxt.text;
+					gestaoEquipamentosBean.idOsPalm = checkInObj.idOsPalm;
+//					gestaoEquipamentosBean.segmento = segmento.text;
+//					gestaoEquipamentosBean.centroDeCusto = centroDeCusto.text;
+//					gestaoEquipamentosBean.jobCode = JobCodeBean(jobCodeCbx.selectedItem).id;				
+//					gestaoEquipamentosBean.componenteCode = compCode.text;
+					if(centroDeCustoContaContabil.bgrpCbx.selectedItem != null){
+						gestaoEquipamentosBean.bgrp = BgrpBean(centroDeCustoContaContabil.bgrpCbx.selectedItem).descricao;
+					}else {
+						gestaoEquipamentosBean.bgrp = "";
+					}					
+					gestaoEquipamentosBean.vcc = centroDeCustoContaContabil.beanV;
+					
+					segmentoObj.segmentoGrid.dataProvider = gestaoEquipamentosBean.segmentoList;
+					
+					checkInObj.modelo = centroDeCustoContaContabil.beanV.modeloMaquina;
+					
+					segmentoObj.init(urlLogin, numeroOs, null, checkInObj, numeroSerie.text.substr(0,4), usuarioBean, gestaoEquipamentosBean);
+									
+					
+//					serviceController.newOsEstimada(gestaoEquipamentosBean); // Tela de segmento
+				}else{
+					//ProgressBarHelper.removeProgressBar();
+					Alert.show("O número de série não é válido confira no DBS!","Alerta");
+					ProgressBarHelper.removeProgressBar();
+				}
+			}
+//			private function onResultNewOsEstimada(event:ResultEvent):void{
+//				gestaoEquipamentosBean = GestaoEquipamentosBean(event.result);
+//				if(gestaoEquipamentosBean.msg != ''){
+//					Alert.show(gestaoEquipamentosBean.msg, "Alerta");
+//					gestaoEquipamentosBean.msg = '';
+//					this.close();
+//					return;
+//				}
+//				this.close();
+//				Alert.show("Os estimada criada com sucesso!", "Alerta");
+//			}
+			
+			private function setDataOsEstimada():void{
+				
+				codigoCliente.text = centroDeCustoContaContabil.codCliente;
+				if(centroDeCustoContaContabil.beanV.tipoCliente == "INT"){
+					filialCbx.enabled = true;
+					if(centroDeCustoContaContabil.beanV.tipoCliente == "INT"){
+						codigoCliente.text =  (FilialBean(filialCbx.selectedItem).stno > 9)? centroDeCustoContaContabil.codCliente.replace('XX', FilialBean(filialCbx.selectedItem).stno):centroDeCustoContaContabil.codCliente.replace('XX', "0"+String(FilialBean(filialCbx.selectedItem).stno));
+					}
+				}else{
+					filialCbx.enabled = false;
+				}
+				//estimateBy.text = 'RCV';				
+				//centroDeCusto.text = centroDeCustoContaContabil.beanV.centroDeCustoSigla;			
+			}	
+			
+			private var gestaoEquipamentosBean:GestaoEquipamentosBean = new GestaoEquipamentosBean();
+//			protected function criarOs_clickHandler(event:MouseEvent):void
+//			{				
+//				serviceController.validarNumSerie(numeroSerie.text.toUpperCase(), centroDeCustoContaContabil.nomeCliente, IdosPalm);
+//			}
+			
+			private function fixFilial():void{
+				var filialList:ArrayCollection = ArrayCollection(filialCbx.dataProvider);
+				for(var i:int=0; i < filialList.length; i++){
+					var f:FilialBean = FilialBean(filialList.getItemAt(i));
+					if(f.stno == Number(usuarioBean.filial)){
+						filialCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixJobControl():void{
+				var jcList:ArrayCollection = ArrayCollection(jobControlCbx.dataProvider);
+				for(var i:int=0; i < jcList.length; i++){
+					var jc:JobControlBean = JobControlBean(jcList.getItemAt(i));
+					if(jc.descricao == 'BG'){
+						jobControlCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+//			private function fixJobCode():void{
+//				var jcodeList:ArrayCollection = ArrayCollection(jobCodeCbx.dataProvider);
+//				for(var i:int=0; i < jcodeList.length; i++){
+//					var jcode:JobCodeBean = JobCodeBean(jcodeList.getItemAt(i));
+//					if(jcode.id == '540'){
+//						jobCodeCbx.selectedIndex = i;
+//						break;
+//					}
+//				} 
+//			}
+			
+			private var segmentoObj:CriarSegmentoOS; // criando o popup segmento
+//			private var gridLinha1:SegmentoBean;
+//			private var gridLinha2:SegmentoBean;
+			
+			private function popupSegmento(): void{	
+				
+				if(centroDeCustoContaContabil.beanV.tipoCliente == "INT" && FilialBean(filialCbx.selectedItem).stno != 0 && centroDeCustoContaContabil.codCliente == '09XX297'){
+					Alert.show("Para esse cliente só pode ser aberto para filial de curitiba!", "Alerta");
+					return;
+				}
+				//serviceController.validarNumSerieSegmento(numeroSerie.text.toUpperCase());
+					serviceController.verificarModelo(centroDeCustoContaContabil.beanV.modeloMaquina, numeroSerie.text.toUpperCase());					
+			}
+			
+//			private function onValidarNumSerieSegmanto(event:ResultEvent):void{
+//				if(Boolean(event.result) == true){					
+//				}else{
+//					Alert.show("Número de série inválido", "Alerta");
+//				}
+//			}
+			
+			public function onResultVerificarModelo(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					//serviceController.findHoras(numeroSerie.text.substr(0,4), '046', '7000');
+					serviceController.validarNumSerie(numeroSerie.text.toUpperCase(), centroDeCustoContaContabil.nomeCliente, IdosPalm, centroDeCustoContaContabil.beanV.modeloMaquina);
+				}else{
+					Alert.show("Modelo de máquina não confere com o número de série. Confirme!", "Alerta!");
+					ProgressBarHelper.removeProgressBar();
+				}
+				
+			}
+			
+			private function removePopUpSegmento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(segmentoObj.segmentoGrid.dataProvider != null){
+					gestaoEquipamentosBean.segmentoList = ArrayCollection(segmentoObj.segmentoGrid.dataProvider);
+					this.close();
+				}
+				
+			}
+			private function onResultFindHoras(event:ResultEvent):void{
+//				
+//				if(Boolean(event.result) == true){
+//					if(filialCbx.selectedIndex == -1 || jobControlCbx.selectedIndex == -1 || jobCodeCbx.selectedIndex == -1 || codigoCliente.text == ''
+//						|| estimateBy.text == '' || make.text == '' || numeroSerie.text == '' || segmento.text == ''
+//						|| centroDeCusto.text == ''){
+//						Alert.show("Todos os campos são de preenchimento obrigatórios!", "Alerta");
+//						ProgressBarHelper.removeProgressBar();
+//						return;
+//					}
+				
+				serviceController.validarNumSerie(numeroSerie.text.toUpperCase(), centroDeCustoContaContabil.nomeCliente, IdosPalm, centroDeCustoContaContabil.beanV.modeloMaquina);
+				
+//				segmentoObj = new CriarSegmentoOS();
+//				//gridLinha1 = new SegmentoBean();
+//				//gridLinha2 = new SegmentoBean();				
+//				segmentoObj.addEventListener(CloseEvent.CLOSE, removePopUpSegmento);
+//				PopUpManager.addPopUp(segmentoObj,this,true);
+//				PopUpManager.centerPopUp(segmentoObj)
+//				
+////				// Verificar se há necessidade de verificar qual tipo de usuário.					
+////				segmentoObj.hBoxButtonsSegmento.visible = false;
+////				segmentoObj.hBoxButtonsSegmento.includeInLayout = false;
+//				if(isRecebedor == true){
+//					segmentoObj.sendPecasDbs.visible = false;
+//					segmentoObj.sendPecasDbs.includeInLayout = false;					
+//					segmentoObj.pendenciasDePecas.visible = false;
+//					segmentoObj.pendenciasDePecas.includeInLayout = false;					
+//					segmentoObj.verificaPecas.visible = false;
+//					segmentoObj.verificaPecas.includeInLayout = false;					
+//					
+//				}
+				
+//				segmentoObj.init(urlLogin, numeroOs, null, checkInObj, numeroSerie.text.substr(0,4), usuarioBean, numeroSerie.text.toUpperCase(),centroDeCustoContaContabil.clienteText.text, IdosPalm);
+				
+				
+//				if(gestaoEquipamentosBean.segmentoList.length == 0){
+//					gridLinha1.numeroSegmento = '01';
+//					gridLinha1.jbcdStr = '937 - EMBARQUE/DES.EQUIPAMENTO';
+//					gridLinha1.jbcd = '937';
+//					gridLinha1.cptcd = '7000';
+//					gridLinha1.cptcdStr = '7000 - MAQUINA';
+//					gridLinha1.qtdComp = 1;
+//					gridLinha1.horas = '2.00';
+//					gridLinha1.jbctStr = 'BG';
+//					gridLinha2.numeroSegmento = '02';
+//					gridLinha2.jbcdStr = '046 - LAVAR A JATO';
+//					gridLinha2.jbcd = '046';
+//					gridLinha2.cptcd = '7000';
+//					gridLinha2.cptcdStr = '7000 - MAQUINA';
+//					gridLinha2.qtdComp = 1;
+//					gridLinha2.horas = (event.result != null)?String(event.result):'0.00';
+//					gridLinha2.jbctStr = 'LV';
+//					ArrayCollection(gestaoEquipamentosBean.segmentoList).addItem(gridLinha1);
+//					ArrayCollection(gestaoEquipamentosBean.segmentoList).addItem(gridLinha2);
+//					
+//					
+//				}
+				//segmentoObj.segmentoGrid.dataProvider = gestaoEquipamentosBean.segmentoList;// recupera os valores do Grid
+			}
+			private function changeFilial():void{
+				codigoCliente.text =  (FilialBean(filialCbx.selectedItem).stno > 9)? centroDeCustoContaContabil.codCliente.replace('XX', FilialBean(filialCbx.selectedItem).stno):centroDeCustoContaContabil.codCliente.replace('XX', "0"+String(FilialBean(filialCbx.selectedItem).stno));
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllFiliais" result="onResultFindAllFiliais(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllJobControl" result="onResultFindAllJobControl(event);ProgressBarHelper.removeProgressBar()"/>
+		<!--mx:method name="findAllJobCode" result="onResultFindAllJobCode(event);ProgressBarHelper.removeProgressBar()"/-->
+		<!--mx:method name="findEstimateBy" result="onResultFindEstimateBy(event);ProgressBarHelper.removeProgressBar()"/-->
+		<mx:method name="validarNumSerie" result="onValidarNumSerie(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="verificarModelo" result="onResultVerificarModelo(event)"/>
+		<!--mx:method name="validarNumSerieSegmento" result="onValidarNumSerieSegmanto(event);ProgressBarHelper.removeProgressBar()"/-->
+		<mx:method name="findHoras" result="onResultFindHoras(event)"/>
+		<!--mx:method name="newOsEstimada" result="onResultNewOsEstimada(event);ProgressBarHelper.removeProgressBar()"/-->
+		
+	</mx:RemoteObject>
+	<mx:Resize id="resizeEffect"   duration="1000"/>
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="centroDeCustoCanvas" backgroundColor="white">
+		<componente:CentroDeCustoContaContabilAgendamento id="centroDeCustoContaContabil"  width="779" height="360" y="27" x="0">
+		</componente:CentroDeCustoContaContabilAgendamento>
+	</mx:Canvas>	
+	<mx:Canvas width="0%" height="0%" resizeEffect="resizeEffect" id="osCanvas" backgroundColor="white">
+		<mx:HRule x="0" y="66" width="100%"/>
+		
+		<!--mx:HRule x="0" y="220" width="100%" visible="false"/-->
+		<mx:ComboBox width="112" x="110" enabled="true" y="152" prompt="Selecione"  id="jobControlCbx" labelField="descricao" selectedIndex="-1"></mx:ComboBox>
+		<mx:ComboBox x="110" y="106" enabled="false" change="changeFilial()" id="filialCbx" labelField="stnm" prompt="Selecione"  selectedIndex="-1" width="240"></mx:ComboBox>
+		<!--mx:ComboBox x="255" y="264" enabled="false" id="jobCodeCbx" labelField="label" prompt="Selecione"  selectedIndex="-1" width="276" visible="false"></mx:ComboBox-->
+		<mx:TextInput width="100" x="524" y="194" id="numeroSerie" textAlign="center" editable="true"/>
+		<!--mx:TextInput width="111" x="10" y="265" id="segmento" text="01" editable="false" textAlign="center" visible="false"/-->
+		<!--mx:TextInput width="111" x="129" y="265" id="centroDeCusto" editable="false" textAlign="center" visible="false"/-->
+		<!--mx:TextInput width="111" x="547" y="265" id="compCode" editable="false" visible="false"/-->
+		<mx:TextInput width="100" x="524" y="153" id="make" text="AA" textAlign="center" editable="true"/>
+		<mx:TextInput width="100" x="524" y="107" id="estimateBy" textAlign="center" editable="false"/>
+		<mx:TextInput width="100" x="110" y="194" id="codigoCliente" editable="false" textAlign="center" height="23"/>
+		<mx:Label x="10" y="108" text="Filial:"/>
+		<!--mx:Label x="10" y="194" text="Segmento da Ordem de Serviço" fontWeight="bold" visible="false"/-->
+		<mx:Label x="10" y="40" text="Cabeçalho da Ordem de Serviço" fontWeight="bold"/>
+		<!--mx:Label x="25" y="239" text="Segmento Os" visible="false"/-->
+		<!--mx:Label x="136" y="239" text="Centro de Custo" visible="false"/-->
+		<!--mx:Label x="378" y="239" text="Job Code" visible="false"/-->
+		<!--mx:Label x="547" y="242" text="Comp. Code" visible="false"/-->
+		<!--mx:Label x="686" y="239" text="Buscar Comp. Code"/-->
+		<mx:Label x="10" y="154" text="Job Control:"/>
+		<mx:Label x="10" y="195" text="Código Cliente:"/>
+		<mx:Label x="418" y="108" text="Etimate By:"/>
+		<mx:Label x="418" y="154" text="Make:"/>
+		<mx:Label x="418" y="195" text="Número de Série:"/>		
+		<mx:Label x="652" y="108" text="Horímetro:"/>	
+		<mx:TextInput x="730" y="107" textAlign="center" width="60" id="horimetroTxt" maxChars="7" restrict="0-9" />	
+		
+		<mx:HBox y="280" width="100%" horizontalAlign="center" >
+		<mx:Button x="459" y="230" label="Criar Segmento" click="popupSegmento()"/>
+			</mx:HBox>
+		<!--mx:Button x="382" y="312" label="Criar Os Estimada" id="criarOs" enabled="true"  click="criarOs_clickHandler(event)"/-->
+		
+		
+	</mx:Canvas>	
+</util:ModuleTitleWindow>

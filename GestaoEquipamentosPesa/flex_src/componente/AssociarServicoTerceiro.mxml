@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*" xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.FamiliaBean;
+			import bean.JobCodeBean;
+			import bean.PrecoBean;
+			import bean.PrefixoBean;
+			import bean.TipoServicoBean;
+			import bean.TreeBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.DragEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			public var cptcd:popUpCptcd;
+			public var jbcd:PopUpJbcd;
+			public var clonarpopup:PopUpClonar;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var precoBean:PrecoBean = new PrecoBean();
+			private var prefixoBean: PrefixoBean = new PrefixoBean();
+			private var filtro:FileFilter = new FileFilter("Selecione o CSV(*.csv;)", "*.csv;");
+			private var uploadFile: FileReference;
+			private var tipoTree:String = 'GE';
+			[Bindable]
+			private var listPrefixoClone:ArrayCollection = new ArrayCollection();
+			private var listPrefixo:ArrayCollection = new ArrayCollection();
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			private var listPaiTreeClone:ArrayCollection = new ArrayCollection();
+			private var usuario:UsuarioBean;
+			
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				this.usuario = usuario;
+				this.urlLogin = urlLogin;
+				
+				serviceController.findAllFornecedorServTerceiro();
+			}
+			
+			private function onResultFindAllFornecedorServTerceiro(event:ResultEvent):void{
+				fornecedorCbx.dataProvider = event.result;
+			}
+			
+		
+			
+			protected function onChanceFornecedorCbx(event:ListEvent):void{
+				serviceController.findServTerceirosAssociados(fornecedorCbx.selectedItem.id);
+				serviceController.findServTerceirosNaoAssociados(fornecedorCbx.selectedItem.id);
+			}
+			
+			private function onResultFindServTerceirosAssociados(event:ResultEvent):void{
+				associadosGrid.dataProvider = event.result;
+			}
+			private function onResultFindServTerceirosNaoAssociados(event:ResultEvent):void{
+				naoAssociadosGrid.dataProvider = event.result;
+			}
+			private function associar():void{
+				var servNaoAssociado:TipoServicoBean = naoAssociadosGrid.selectedItem as TipoServicoBean;
+				
+				var listServico:ArrayCollection = ArrayCollection(associadosGrid.dataProvider);
+					for(var i:int = 0; i < listServico.length; i++){
+						var servAssociado:TipoServicoBean = TipoServicoBean(listServico.getItemAt(i));
+						if(servNaoAssociado.id == servAssociado.id){
+							Alert.show("Não é possível clonar o preço pois ele já existe!", "Alerta");
+							//precificacaoGrid0Destino.dropEnabled = false;
+							return;
+						}
+					}
+					//precificacaoGrid0Destino.dropEnabled = true;
+					serviceController.associarServicoTerceiro(fornecedorCbx.selectedItem.id, servNaoAssociado.id);
+				}
+			
+			
+			private function onResultAssociarServicoTerceiro(event:ResultEvent):void{
+				serviceController.findServTerceirosAssociados(fornecedorCbx.selectedItem.id);
+				serviceController.findServTerceirosNaoAssociados(fornecedorCbx.selectedItem.id);
+			}
+			private function onResultDesassociarServicoTerceiro(event:ResultEvent):void{
+				serviceController.findServTerceirosAssociados(fornecedorCbx.selectedItem.id);
+				serviceController.findServTerceirosNaoAssociados(fornecedorCbx.selectedItem.id);
+			}
+			
+			private function desassociar():void {
+					serviceController.desassociarServicoTerceiro(associadosGrid.selectedItem);					
+			}
+			
+	
+					
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<!--mx:method name="findAllJobCode" result="onResultFindAllJobCode(event)"/-->
+		<mx:method name="findAllFornecedorServTerceiro" result="onResultFindAllFornecedorServTerceiro(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findServTerceirosAssociados" result="onResultFindServTerceirosAssociados(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findServTerceirosNaoAssociados" result="onResultFindServTerceirosNaoAssociados(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="associarServicoTerceiro" result="onResultAssociarServicoTerceiro(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="desassociarServicoTerceiro" result="onResultDesassociarServicoTerceiro(event);ProgressBarHelper.removeProgressBar()" />
+		
+		
+	</mx:RemoteObject>
+	
+	<mx:VBox width="100%" height="100%" horizontalAlign="center">
+		<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+			<mx:Label text="Associar Serviços de Terceiro" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		<mx:Form>
+			<mx:FormItem label="Fornecedor" required="false">
+				<mx:ComboBox id="fornecedorCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="onChanceFornecedorCbx(event)">
+				</mx:ComboBox>
+			</mx:FormItem>
+		</mx:Form>
+		
+		<mx:HBox width="100%" height="100%">		
+			<mx:VBox height="100%" width="50%" horizontalAlign="center">
+				<mx:Text text="Serviços que o Fornecedor Não Possui"  fontWeight="bold"/>
+				<mx:DataGrid height="100%" width="100%"  id="naoAssociadosGrid" doubleClickEnabled="true" doubleClick="associar()">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Descricao" dataField="descricao"/>
+					</mx:columns>
+				</mx:DataGrid>
+				
+			
+			</mx:VBox>
+			<mx:VBox height="100%" width="50%" horizontalAlign="center">
+				<mx:Text text="Serviços que o Fornecedor Possui"  fontWeight="bold"/>
+				<mx:DataGrid height="100%" width="100%"  id="associadosGrid"  doubleClickEnabled="true" doubleClick="desassociar()">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Descrição" dataField="descricao" />
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:VBox>
+		</mx:HBox>
+	</mx:VBox>	
+</mx:Canvas>

@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;	
+				gridServTercMetrologia.addEventListener("ENVIARFORNECEDOR", enviarFornecedor);
+				gridServTercMetrologia.addEventListener("RECEBERFORNECEDOR", receberFornecedor);
+				gridServTercMetrologia.addEventListener("IMPRIMIRNF", imprimirNF);
+				gridServTercMetrologia.addEventListener("IMPRIMIRDETALHES", imprimirDetalhes);
+				serviceController.findServTercRecepcao();
+			}
+			
+			protected function imprimirDetalhes(ev:Event):void
+			{
+				
+				var uv:URLVariables = new URLVariables();
+				uv.idSegmento = ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento;
+				uv.idTipoServTerceiro = ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idTipoServicoTerceiros;
+				var url:URLRequest = new URLRequest("VisualizarDetalhes");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			private function onResultFindServTercRecepcao(event:ResultEvent):void{
+				gridServTercMetrologia.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function receberFornecedor(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente enviar o serviço de terceiros para a aprovação na metrologia?", "Alerta", 3, this, alertClickHandlerReceberFornecedor);				
+			}
+			
+			private function alertClickHandlerReceberFornecedor(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.popupObsReceberFornecedor();
+				}
+			}
+			private function enviarFornecedor(ev:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente enviar o serviço de terceiros para o fornecedor?", "Alerta", 3, this, alertClickHandlerEnviarFornecedor);				
+			}
+			
+			private function alertClickHandlerEnviarFornecedor(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.popupObsEnviarFornecedor();
+				}
+			}
+			
+			private	var popupObs:PopupObs;
+			private function popupObsEnviarFornecedor():void{
+				popupObs = new PopupObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsEnviarFornecedor);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+			}
+			private function removePopupObsEnviarFornecedor(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.enviarServTercFornecedor(ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idTipoServicoTerceiros, ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento, popupObs.obsTextArea.text);
+				}
+			}
+			private function popupObsReceberFornecedor():void{
+				popupObs = new PopupObs();
+				popupObs.addEventListener(CloseEvent.CLOSE, removePopupObsReceberFornecedor);
+				PopUpManager.addPopUp(popupObs, this, true);
+				PopUpManager.centerPopUp(popupObs);
+			}
+			private function removePopupObsReceberFornecedor(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupObs.click == true){
+					serviceController.receberServTercFornecedor(ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idTipoServicoTerceiros, ServicoTerceirosBean(gridServTercMetrologia.selectedItem).idSegmento, popupObs.obsTextArea.text);
+				}
+			}
+			
+			private function onResultEnviarFornecedor(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Serviço de terceiros enviado para o fornecedor com sucesso!", "Alerta");
+					serviceController.findServTercRecepcao();
+					return;
+				}
+				Alert.show("Erro ao tentar enviar serviços de terceiros para o fornecedor!", "Erro");
+				return;
+			}
+			private function onResultReceberServTercFornecedor(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Serviço de terceiros enviado para a metrologia com sucesso!", "Alerta");
+					serviceController.findServTercRecepcao();
+					return;
+				}
+				Alert.show("Erro ao tentar enviar serviços de terceiros para a metrologia!", "Erro");
+				return;
+			}
+			protected function imprimirNF(ev:Event):void
+			{
+				var uv:URLVariables = new URLVariables();
+				uv.idSituacaoServTerc = ServicoTerceirosBean(gridServTercMetrologia.selectedItem).id;	
+				var url:URLRequest = new URLRequest("VisualizarNF");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findServTercRecepcao" result="onResultFindServTercRecepcao(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="enviarServTercFornecedor" result="onResultEnviarFornecedor(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="receberServTercFornecedor" result="onResultReceberServTercFornecedor(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Serviços de Terceiros Metrologia" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="37" width="100%" height="100%" id="gridServTercMetrologia">
+		<mx:columns>
+			<mx:DataGridColumn headerText="OS" dataField="numeroOs"/>
+			<mx:DataGridColumn headerText="Local" dataField="descricaoLocalServico"/>
+			<mx:DataGridColumn headerText="Segmento" dataField="numeroSegmento"/>
+			<mx:DataGridColumn headerText="Job Control" dataField="jobControl"/>
+			<mx:DataGridColumn headerText="Fornecedor" dataField="descricaoFornecedor"/>
+			<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+			<mx:DataGridColumn headerText="QTD." dataField="qtdServTerceiros"/>
+			<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+			<mx:DataGridColumn headerText="Obs">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:TextArea text="{data.obs}"/>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Status" dataField="statusServTerceiros"/>
+			<mx:DataGridColumn headerText="Detalhes" width="63">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/detalhes.png"  width="15" buttonMode="true" visible="{(data.arquivoDetalhe.length > 0)? true : false}"  toolTip="Detalhes Serviços Terceiros" height="15" click="{dispatchEvent(new Event('IMPRIMIRDETALHES', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="NF" width="35">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/contrato.png"  width="15" buttonMode="true"  toolTip="Imprimir Nota Fiscal" height="15" click="{dispatchEvent(new Event('IMPRIMIRNF', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Enviar&#13;Serviços&#13;de Terceiros" dataField="Enviar">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/confirm.png" width="15" visible="{(data.siglaStatusServTerceiros == 'APREC' || data.siglaStatusServTerceiros == 'REJREC')?true:false}" buttonMode="true" height="15"  click="{dispatchEvent(new Event('ENVIARFORNECEDOR', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Receber&#13;Serviços&#13;de Terceiros" dataField="receber">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/confirm.png" width="15" buttonMode="true" visible="{(data.siglaStatusServTerceiros == 'FINFOR')?true:false}" height="15"  click="{dispatchEvent(new Event('RECEBERFORNECEDOR', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

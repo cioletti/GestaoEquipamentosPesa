@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Criar OS Interna"  xmlns:util="util.*" height="336" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"  alpha="0.97" cornerRadius="4" borderColor="#C6DEFF" xmlns:print="org.print.*" xmlns:control="br.com.thinklab.util.control.*" width="800">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ClienteBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.OSInternaBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			import mx.events.ValidationResultEvent;
+			
+			import util.ProgressBarHelper;
+			public var urlLogin:String = "";
+			private var tipoTree:String = 'GE';
+			[Bindable]
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			public var nomeCliente:String;
+			private var osInter:OSInternaBean = new OSInternaBean();
+			private var myValidators:Array;
+			
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				
+				myValidators = new Array();
+				myValidators.push(campoSerieText);
+				myValidators.push(campoHorimetroText);
+				myValidators.push(campoClienteText);
+				myValidators.push(campoTelefoneText);
+				myValidators.push(campoContatoText);
+				myValidators.push(campoFamiliaCbx);
+				myValidators.push(campoModeloCbx);
+				myValidators.push(campoEmailContatoText);
+				
+				serviceController.findAllFamilia();
+			}
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllModeloOS(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			
+			private function salvarOSInterna():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("Deseja realmente entrar com o equipamento manualmente?", "Alerta", 3, this, alertClickHandlerCriarOSInterna);
+					
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			private function alertClickHandlerCriarOSInterna(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {	
+					osInter.idfamilia = FamiliaBean(familiaCbx.selectedItem).id;
+					osInter.idModelo = ModeloBean(modeloCbx.selectedItem).id;
+					osInter.descricaoModelo = ModeloBean(modeloCbx.selectedItem).descricao;
+					osInter.horimetro = horimetroText.text;
+					osInter.serie = serieText.text;
+					osInter.contato = contatoText.text;
+					osInter.telefone = telefoneText.text;
+					osInter.nomeCliente = clienteText.text;
+					osInter.emailContato = emailContatoText.text;
+					
+					serviceController.saveOSInterna(osInter, tipoTree);
+				}else{
+					return;
+				}	
+			}
+			private function onResultSaveOSInterna(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					this.close();
+					Alert.show("Entrada de equipamento realizada com sucesso!", "Alerta");			
+					
+				}else{
+					Alert.show("Ocorreu um erro ao entrar com o equipamento!", "Alerta");
+				}
+				
+			}
+			
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = event.result;
+			}
+			private function onResultFindAllModeloOS(event:ResultEvent):void{
+				modeloCbx.dataProvider = null;
+				listPaiTree.removeAll();
+				listPaiTree.addAll(event.result as ArrayCollection);
+				modeloCbx.dataProvider = listPaiTree;
+			}
+
+			
+			
+                  
+		]]>
+	</mx:Script>
+	<mx:NumberValidator id="campoFamiliaCbx" source="{familiaCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoSerieText" requiredFieldError="Este campo  obrigatório!" required="true" source="{serieText}" property="text" />
+	<mx:StringValidator id="campoHorimetroText" requiredFieldError="Este campo  obrigatório!" required="true" source="{horimetroText}" property="text" />
+	<mx:StringValidator id="campoTelefoneText" requiredFieldError="Este campo  obrigatório!" required="true" source="{telefoneText}" property="text" />
+	<mx:StringValidator id="campoContatoText" requiredFieldError="Este campo  obrigatório!" required="true" source="{contatoText}" property="text" />
+	<mx:StringValidator id="campoClienteText" requiredFieldError="Este campo  obrigatório!" required="true" source="{clienteText}" property="text" />
+	<mx:EmailValidator id="campoEmailContatoText" requiredFieldError="Email inválido!" missingAtSignError="E-mail deve conter @" required="true" source="{emailContatoText}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllModeloOS" result="onResultFindAllModeloOS(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOSInterna" result="onResultSaveOSInterna(event);ProgressBarHelper.removeProgressBar()" />
+		
+		
+	</mx:RemoteObject>
+	<mx:Form x="240" y="10" >
+		<mx:FormItem label="Família" required="true">
+			<mx:ComboBox id="familiaCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandler(event)" ></mx:ComboBox>
+		</mx:FormItem>
+		<mx:FormItem label="Modelo" height="25" required="true">			
+			<mx:ComboBox id="modeloCbx" prompt="Selecione" labelField="descricao"> </mx:ComboBox>
+		</mx:FormItem>
+		<mx:FormItem label="Série" required="true">
+			<mx:TextInput id="serieText"/>
+		</mx:FormItem>
+		<mx:FormItem label="Horímetro" required="true">
+			<mx:TextInput id="horimetroText" restrict="0-9"/>
+		</mx:FormItem>
+		<mx:FormItem label="Contato" required="true">
+			<mx:TextInput id="contatoText"/>
+		</mx:FormItem>
+		<mx:FormItem label="Email do Contato" required="true">
+			<mx:TextInput id="emailContatoText"/>
+		</mx:FormItem>
+		<mx:FormItem label="Telefone" required="true">
+			<mx:TextInput id="telefoneText" restrict="-0-9()-"/>
+		</mx:FormItem>
+		<mx:FormItem label="Cliente:" required="true">
+			<mx:TextInput id="clienteText"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Button x="316" y="271" label="Entrar com Equipamento" click="salvarOSInterna()"/>
+	
+</util:ModuleTitleWindow>

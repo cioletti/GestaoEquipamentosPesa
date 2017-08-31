@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleTitleWindow  xmlns="util.*" horizontalAlign="center" xmlns:mx="http://www.adobe.com/2006/mxml" width="600" height="150" alpha="0.97" cornerRadius="4">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			
+			import mx.events.ValidationResultEvent;
+			
+			import bean.FotosBean;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;			
+		
+			private var urlLogin:String;
+			private var checkinBean:CheckinBean;
+			private var myValidators:Array;
+			
+			private function erro(event: FaultEvent): void{
+				Alert.show(""+event);
+			}
+		
+			public function init(urlLogin:String, checkin:CheckinBean): void{
+				
+				myValidators = new Array();
+				myValidators.push(campoOS);
+				
+				this.checkinBean = checkin;		
+				this.title = "Excluir OS: "+ checkin.numeroOs;				
+			}			
+			
+			private function removerOS(): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente excluir a OS?", "Alerta", 3, this, alertClickHandler);
+			}	
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.removerOS(checkinBean, osTxt.text.toUpperCase());
+				}else{
+					return;
+				}
+			}
+			
+			private function onResultRemoverOS(event: ResultEvent): void{
+			
+				Alert.show(String(event.result), "Alerta!");
+				
+				if(String(event.result) == "Operação realizada com sucesso."){
+					this.close();
+				}			
+			}
+
+			protected function confirmarBtn_clickHandler(event:MouseEvent):void
+			{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					if(osTxt.text.toUpperCase() == checkinBean.numeroOs){
+						Alert.show("A OS substituída não pode ser a mesma a excluir.", "Alerta!");
+					}else{
+						this.removerOS();
+					}
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+				
+			}
+
+		]]>
+	</mx:Script>
+	<mx:StringValidator id="campoOS" requiredFieldError="Este campo é obrigatório!" required="true" source="{osTxt}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="erro(event);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="removerOS" result="onResultRemoverOS(event);ProgressBarHelper.removeProgressBar()"/>	
+		
+	</mx:RemoteObject>
+	
+	<mx:Resize id="resizeEffect" duration="1000"/>
+	
+	<mx:Form>
+		<mx:FormItem label="OS substituta:" required="true" toolTip="Digite o numero da OS que à substituirá, ao ser excluída.">
+			<mx:TextInput id="osTxt" maxChars="30"/>
+		</mx:FormItem>
+		<mx:FormItem>
+			<mx:Button label="Confirmar" id="confirmarBtn" click="confirmarBtn_clickHandler(event)"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+</ModuleTitleWindow>

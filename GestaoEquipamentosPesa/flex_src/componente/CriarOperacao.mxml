@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Operações" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="986" height="400">
+	<mx:Script>
+		
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.JobCodeBean;
+			import bean.OperacaoBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;			
+			public var cptcd:popUpCptcd;
+			
+			private var pecas:Pecas;
+			private var numeroOs:String;
+			private var idCheckin:Number;
+			public var checkInObj:CheckinBean;
+			private var _usuarioBean:UsuarioBean;
+			[Bindable]
+			public var segmento:SegmentoBean;			
+			
+			public function init(urlLogin:String, segmento:SegmentoBean, numeroOs:String, checkInObj:CheckinBean, _usuarioBean:UsuarioBean):void{ //, numeroOs:String,idCheckin:Number, checkInObj:CheckinBean
+				this.segmento = segmento;
+				this.checkInObj = checkInObj;
+				this.urlLogin = urlLogin;
+				this.numeroOs = numeroOs;
+				this._usuarioBean = _usuarioBean;
+							
+				if(this.numeroOs == null || this.numeroOs == ''  ){					
+					operacaoGrid.addEventListener("REMOVEROPERACAO", confirmarExlusaoOperacao);
+					carregarGrid();
+				}else{
+					adicionaroperacao.enabled = false
+					if(checkInObj.dataPrevisaoEntrega == null || checkInObj.dataPrevisaoEntrega == ''){
+						operacaoGrid.addEventListener("REMOVEROPERACAO", confirmarExlusaoOperacao);
+						envOPerDbs.visible = true;
+						adicionaroperacao.enabled = true;
+					}
+					if(isNaN(segmento.id) || segmento.id == 0){
+						adicionaroperacao.enabled = true;
+						envOPerDbs.visible = false;
+						operacaoGrid.dataProvider = segmento.operacaoList;
+					}else{
+						if(segmento.operacaoList != null && segmento.operacaoList.length > 0){
+							segmento.operacaoList.removeAll();
+						}
+						serviceController.findAllOperacoes(segmento.id);
+					}
+					
+				}
+				if(_usuarioBean.siglaPerfil == 'DIG'){
+					envOPerDbs.includeInLayout = false;
+					envOPerDbs.visible = false;
+					okOperacao0.includeInLayout = false;
+					okOperacao0.visible = false;
+					adicionaroperacao.includeInLayout = false;
+					adicionaroperacao.visible = false;
+					columnExcluir.visible = false;	
+					
+				}else if(this._usuarioBean.siglaPerfil == 'CONS'){
+					adicionaroperacao.visible = false;
+					envOPerDbs.visible = false;
+					okOperacao0.visible = false;
+					columnExcluir.visible = false;
+				}
+				if(checkInObj.statusNegociacaoConsultor == 'A' || checkInObj.statusNegociacaoConsultor == 'R'){
+					adicionaroperacao.visible = false;
+					envOPerDbs.visible = false;
+					okOperacao0.visible = false;
+					columnExcluir.visible = false;
+				}
+				serviceController.findAllJobCode();					
+			}
+			private function carregarGrid():void{
+				if(segmento.operacaoList.length > 0 ){
+					operacaoGrid.dataProvider = segmento.operacaoList;					
+				}
+				
+			}
+			private function removePopUpPecas(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function confirmarExlusaoOperacao(ev: Event):void{
+				if(OperacaoBean(operacaoGrid.selectedItem).codErroDbs == '00'){
+					Alert.show("Não é possível excluir essa operação!","Alerta");
+					return;
+				}
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente excluir a Operação?", "Alerta", 3, this, alertClickHandlerExcluirOperacao);
+			}
+			
+			private function alertClickHandlerExcluirOperacao(event:CloseEvent):void { 				
+				if (event.detail==Alert.YES) {	
+					if(OperacaoBean(operacaoGrid.selectedItem).codErroDbs == '100' ){
+						Alert.show("Aguarde a resposta do DBS!","Alerta");
+					}else{
+						this.removerOperacao();					
+					}
+				}else{
+					return;
+				}	
+			}			
+			
+			private function removerOperacao(): void{
+				if(!isNaN(OperacaoBean(operacaoGrid.selectedItem).id) || OperacaoBean(operacaoGrid.selectedItem).id == 0){
+					if(OperacaoBean(operacaoGrid.selectedItem).codErroDbs == '99'){
+						serviceController.removerOperacaoComCodErro(OperacaoBean(operacaoGrid.selectedItem).id, OperacaoBean(operacaoGrid.selectedItem).idSegmento); // Remove operação com código de erro 99 (erro na operação) local e DBS.
+					}
+					return;
+				}else{
+					ArrayCollection(operacaoGrid.dataProvider).removeItemAt(operacaoGrid.selectedIndex);//Pega a coleção do operacaoGrid e remove o item selecionado					
+				}
+//				for(var i:int = 0; i < ArrayCollection(operacaoGrid.dataProvider).length; i++){ //Percorre a coleção 								
+//					if (i < 9){
+//						var temp:int = i+1;
+//						ArrayCollection(operacaoGrid.dataProvider).getItemAt(i).numero = '0' + temp;//Pega o primeiro elemento e remonta o array de forma correta (sem  elemento excluído)
+//					}else{
+//						ArrayCollection(operacaoGrid.dataProvider).getItemAt(i).numero = i+1;
+//					}
+//				}				
+			}
+			
+			private function onResultRemoverOperacaoComCodErro(event:ResultEvent):void{
+				if(event.result == true){
+					ArrayCollection(operacaoGrid.dataProvider).removeItemAt(operacaoGrid.selectedIndex);
+					Alert.show("Operação executada com sucesso!", "Alerta!");
+					return;
+				}else{
+					Alert.show("Ocorreu um erro ao executar a operação!", "Alerta!");
+					return;
+				}
+			}
+			
+			private function popupCptcd(): void{
+				cptcd = new popUpCptcd();
+				cptcd.addEventListener(CloseEvent.CLOSE, removePopUpCptcd);
+				PopUpManager.addPopUp(cptcd,this,true);
+				PopUpManager.centerPopUp(cptcd)
+				cptcd.init(urlLogin);
+			}
+			private function removePopUpCptcd(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if (cptcd.cptcd != null){
+					cptcdText.text = cptcd.cptcdDescricao;
+				}
+			}
+			
+			private function onResultFindAllJobCode(event:ResultEvent):void{
+				jobCodeCbx.dataProvider = event.result;
+				
+			}
+			
+			private function onResultFindAllOperacoes (event:ResultEvent):void{
+				
+				operacaoGrid.dataProvider = event.result;
+				
+			}
+			
+			private function adicionarJobcdGrid():void{ 
+				if(operacaoText.text == ""){
+					Alert.show("Por favor adicione o número da operação","Alerta");
+					return;
+				}
+				if(jobCodeCbx.selectedIndex == -1 && cptcdText.text == ""){ // Faz as validações dos campos.
+					Alert.show("Por favor adicione o Job Code e o Comp.Code","Alerta");
+					return;
+				}
+				if (jobCodeCbx.selectedIndex == -1){
+					Alert.show("Por favor adicione o Job Code","Alerta");
+					return;
+				}
+				if (cptcdText.text == ""){
+					Alert.show("Por favor adicione o Comp.Code","Alerta");
+					return;
+				}				
+				
+				var oper:OperacaoBean = new OperacaoBean(); //Instancia um objeto para poder setar os valores. 
+				//var operAux:OperacaoBean = new OperacaoBean();
+				var jobCd: JobCodeBean = JobCodeBean (jobCodeCbx.selectedItem); //Coloca em uma variável item selecionado no comboBox 
+				oper.jbcd = jobCd.id; //Pega o valor de id e seta no jbcd
+				oper.jbcdStr = jobCd.id +" - "+ jobCd.descricao;// Pega o id e a descrição e seta jbcdStr/
+				oper.cptcd = cptcdText.text;// Seta em cptcd o texto da caixa cptcdText (Comp.Code)
+				oper.desricao = jobCd.descricao; 
+				oper.idSegmento = operacaoText.text;
+				oper.numero = operacaoText.text;
+				oper.idFuncionarioCriador = _usuarioBean.matricula;
+				
+//				var temp:int;
+				if(operacaoGrid.dataProvider == null){ //Verifica se o Grid está vazio, se estiver cria um novo array. 
+					operacaoGrid.dataProvider = new ArrayCollection();
+				}				
+//				temp = ArrayCollection (operacaoGrid.dataProvider).length;
+//				if(temp == 0){
+//					temp = temp + 1; // Contamos o grid pelas linhas e não pelo numero segmento
+//				}else{
+//					temp = ArrayCollection (operacaoGrid.dataProvider).length;
+//					operAux = (operacaoGrid.dataProvider).getItemAt(temp-1);
+//					if(int(operAux.numero) < 10){
+//						var array:Array = operAux.numero.split("0");
+//						temp = (int (array[1]))+1;						
+//				}else{
+//					temp = (int (operAux.numero))+ 1;
+//					}
+//				}
+//				if (temp < 10 ){ 
+//					oper.numero = '0' + temp.toString(); // converte o numero de linhas para string para poder guardar na variável string
+//				}else{
+//					oper.numero = temp.toString(); // converte o numero de linhas para string para poder guardar na variável string
+//				}
+				var numOper:int =  int (oper.numero);
+				
+				
+				if(String (numOper).length < 2){					
+					oper.numero = '0' + numOper;					
+				}else{
+					oper.numero = String (numOper);
+				}
+				
+				if(existeNumeroOperacao(oper.numero)){
+					Alert.show("O numero da operação já existe ou é inválido","Alerta!");
+					return;					
+				}			
+				
+				ArrayCollection (operacaoGrid.dataProvider).addItem(oper); //Adiciona item ao Grid.  				
+			}
+			
+			private function existeNumeroOperacao(numeroOperacao:String):Boolean{
+				if(numeroOperacao == '00'){
+					return true;
+				}
+				var operList:ArrayCollection = ArrayCollection(operacaoGrid.dataProvider);
+				for(var i:int=0; i < operList.length; i++){
+					var operBean:OperacaoBean = OperacaoBean(operList.getItemAt(i));
+					if(operBean.numero == numeroOperacao ){
+						return true;
+						break;
+					}
+				}
+				return false;
+			}
+			
+			private function fecharPoUp():void{
+				if(operacaoGrid.dataProvider != null){
+					var listAux:ArrayCollection = new ArrayCollection();
+					listAux.addAll(ArrayCollection(operacaoGrid.dataProvider));
+					if(segmento.operacaoList == null){
+						segmento.operacaoList = new ArrayCollection();
+					}
+					segmento.operacaoList.removeAll();
+					
+					this.segmento.operacaoList.addAll(listAux);
+					this.close();
+				}else{
+					this.close();
+				}
+			}
+			//			
+			private function onResultSaveOrcamento (event:ResultEvent):void{
+				if(CheckinBean(event.result).hasSendDbs == 'S'){
+					checkInObj = CheckinBean(event.result);
+					Alert.show("Enviado com sucesso!", "Alerta");
+					fecharPoUp();
+				}else{
+					Alert.show("Erro ao enviar peças para o DBS!", "Alerta");					
+				}
+			}			
+			private function onResultSendOperacaoDbs (event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Operação enviada com sucesso!", "Alerta");
+					this.close();
+				}else{
+					Alert.show("Erro ao enviar operação para o DBS!", "Alerta");					
+				}
+			}			
+			
+
+			protected function envOPerDbs_clickHandler(event:MouseEvent):void
+			{
+				if(operacaoGrid.dataProvider == null || ArrayCollection(operacaoGrid.dataProvider).length == 0){
+					Alert.show("Crie uma operação para enviar para o DBS!", "Alerta");
+					return;
+				}
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente enviar operação para o DBS?", "Alerta", 3, this, alertClickHandler);
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {		// (event.detail==Alert.YES)		
+					serviceController.sendOperacaoDbs(checkInObj, ArrayCollection(operacaoGrid.dataProvider), this.segmento.numeroSegmento);
+				}else{				
+					return;
+				}			
+			}
+
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllJobCode" result="onResultFindAllJobCode(event);ProgressBarHelper.removeProgressBar()"/>		
+		<mx:method name="findAllOperacoes" result="onResultFindAllOperacoes(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="sendOperacaoDbs" result="onResultSendOperacaoDbs(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="removerOperacaoComCodErro" result="onResultRemoverOperacaoComCodErro(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="SegmentoCanvas" backgroundColor="white">
+		<mx:HBox x="0" y="105" width="100%" height="100%">
+			<mx:DataGrid width="100%" id="operacaoGrid" height="100%" doubleClickEnabled="true"> <!--doubleClick="doubleClickPecas()-->
+				<mx:columns>
+					<mx:DataGridColumn headerText="Numero" dataField="numero" width="70"/>				
+					<mx:DataGridColumn headerText="Job Code" dataField="jbcdStr"/>
+					<mx:DataGridColumn headerText="Comp.Code" dataField="cptcd"/>				
+					<mx:DataGridColumn headerText="Msg DBS" dataField="msgErroDbs" width="350">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center" backgroundColor="{(data.codErroDbs == '00')?0x99FF99:0x99FF6347}">
+								<mx:Label  text="{data.msgErroDbs}"  />
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<mx:DataGridColumn headerText="Excluir" dataField="excluir" id="columnExcluir" width="70">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('REMOVEROPERACAO', true)) }" />
+								</mx:VBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn>				  
+					
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:HBox>
+		<mx:HBox x="0" y="25" width="100%" >
+			<mx:Text text="N. Operação&#xa;"/>
+			<mx:TextInput id="operacaoText" width="40" maxChars="15"  restrict="[0-9]"/>
+			<mx:Text text="Job Code"/>
+			<mx:ComboBox id="jobCodeCbx" labelField="label" prompt="Selecione"></mx:ComboBox>
+			<mx:Text x="287" y="51" text="Comp.Code"/>
+			<mx:TextInput x="350" y="50" enabled="false" id="cptcdText"/>
+			<mx:Button x="543.5" y="49" label="Pesquisar" click="popupCptcd()"/> <!-- Chama o popUp -->
+			<mx:Button label="Adicionar"  enabled="true" id="adicionaroperacao" click="adicionarJobcdGrid()"/>
+		</mx:HBox>
+		<mx:HBox x="0" y="52" width="100%" horizontalAlign="center">
+			<mx:Button label="Enviar Operação Para o DBS" id="envOPerDbs" visible="false" click="envOPerDbs_clickHandler(event)"/>			
+		</mx:HBox>
+			<mx:HBox width="100%" x="0" y="81" horizontalAlign="center">				
+				<mx:Button label="OK" id="okOperacao0" click="fecharPoUp()"/>				
+			</mx:HBox>
+	</mx:Canvas>
+</util:ModuleTitleWindow>

@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				gridServTerc.addEventListener("IMPRIMIRNF", imprimirNF);
+				gridServTerc.addEventListener("IMPRIMIRDETALHES", imprimirDetalhes);
+				gridServTerc.addEventListener("DATAENTREGA", dataPrevisaoEntrega);
+				gridServTerc.addEventListener("VISUALIZAR", popupVisualizarArquivos);
+				serviceController.findServTercHistoricoAdministrador('');
+			}
+			
+			private var popupDataEntrega:PopupDataPrevisaoTerminoServTerc;
+			protected function dataPrevisaoEntrega(ev:Event):void
+			{
+				popupDataEntrega = new PopupDataPrevisaoTerminoServTerc();
+				popupDataEntrega.addEventListener(CloseEvent.CLOSE, removePopPrevisaoTerminoServTercPopUp);
+				PopUpManager.addPopUp(popupDataEntrega, this, true);
+				PopUpManager.centerPopUp(popupDataEntrega);
+			}
+			
+			private function removePopPrevisaoTerminoServTercPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupDataEntrega.clickButtonOk == true){
+					serviceController.savePrevisaoDataTerminoServico(ServicoTerceirosBean(gridServTerc.selectedItem), popupDataEntrega.data.text)
+				}
+			}
+			
+			private function findHistoricoOs():void{
+				serviceController.findServTercHistoricoAdministrador(campoPesquisa.text);
+			}
+			private function onResultFindHistoricoOs(event:ResultEvent):void{
+				gridHistoricoServTerceiros.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindSavePrevisaoDataTerminoServico(event:ResultEvent):void{
+				if(event.result == true){
+					serviceController.findServTercHistoricoAdministrador('');
+					Alert.show("Data de previsão de término de serviço de terceiros atualizada com sucesso!", "Alerta");
+					return;
+				}
+				Alert.show("Erro ao tentar atualizar Data de previsão de término de serviço de terceiros!", "Alerta");
+			}
+			private function onResultFindServTercHistorico(event:ResultEvent):void{
+				gridServTerc.dataProvider = ArrayCollection(event.result);
+				gridHistoricoServTerceiros.dataProvider = new ArrayCollection();
+			}
+
+			protected function gridServTerc_changeHandler(event:ListEvent):void
+			{
+				serviceController.findHistoricoOs(ServicoTerceirosBean(gridServTerc.selectedItem).numeroOs, ServicoTerceirosBean(gridServTerc.selectedItem).idSegmento,ServicoTerceirosBean(gridServTerc.selectedItem).idTipoServicoTerceiros);
+			}
+			protected function imprimirNF(ev:Event):void
+			{
+				serviceController.recuperarNomeArquivo(ServicoTerceirosBean(gridServTerc.selectedItem));
+			}
+			protected function onResultFindRecuperarNomeArquivo(ev:ResultEvent):void
+			{
+				if(String(ev.result) == ""){
+					Alert.show("Não existe nota fiscal adicionada a este serviço de terceiros!", "Alerta");
+					return;
+				}
+				var uv:URLVariables = new URLVariables();
+				uv.idSituacaoServTerc = ServicoTerceirosBean(gridServTerc.selectedItem).id;	
+				var url:URLRequest = new URLRequest("VisualizarNF");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			protected function imprimirDetalhes(ev:Event):void
+			{
+				//serviceController.recuperarNomeArquivoDetalhes(String(ServicoTerceirosBean(gridServTerc.selectedItem).idFornecedor)+"_" +String(ServicoTerceirosBean(gridServTerc.selectedItem).idTipoServicoTerceiros));
+				
+				var uv:URLVariables = new URLVariables();
+				uv.idSegmento = ServicoTerceirosBean(gridServTerc.selectedItem).idSegmento;
+				uv.idTipoServTerceiro = ServicoTerceirosBean(gridServTerc.selectedItem).idTipoServicoTerceiros;
+				var url:URLRequest = new URLRequest("VisualizarDetalhes");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			private	var popupAnexo:PopUpArquivosServicoTerceiros;
+			private function popupVisualizarArquivos(ev:Event):void{
+				popupAnexo = new PopUpArquivosServicoTerceiros();
+				popupAnexo.addEventListener(CloseEvent.CLOSE, anexoServTerceiros);
+				PopUpManager.addPopUp(popupAnexo, this, true);
+				PopUpManager.centerPopUp(popupAnexo);
+				popupAnexo.init(urlLogin, ServicoTerceirosBean(gridServTerc.selectedItem));
+			}
+			
+			private function anexoServTerceiros(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+//			protected function onResultRecuperarNomeArquivoDetalhes(ev:ResultEvent):void
+//			{
+//				if(String(ev.result) == ""){
+//					Alert.show("Não existe Excel com detalhes adicionados a este serviço de terceiros!", "Alerta");
+//					return;
+//				}
+//				var uv:URLVariables = new URLVariables();
+//				uv.idSegmento = ServicoTerceirosBean(gridServTerc.selectedItem).idSegmento;
+//				uv.idTipoServTerceiro = ServicoTerceirosBean(gridServTerc.selectedItem).idTipoServicoTerceiros;
+//				var url:URLRequest = new URLRequest("VisualizarDetalhes");
+//				url.method = "POST";
+//				url.data = uv;
+//				navigateToURL(url,"_blank");
+//			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findHistoricoOs" result="onResultFindHistoricoOs(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findServTercHistoricoAdministrador" result="onResultFindServTercHistorico(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="recuperarNomeArquivo" result="onResultFindRecuperarNomeArquivo(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="savePrevisaoDataTerminoServico" result="onResultFindSavePrevisaoDataTerminoServico(event);ProgressBarHelper.removeProgressBar()"/>	
+		<!--mx:method name="recuperarNomeArquivoDetalhes" result="onResultRecuperarNomeArquivoDetalhes(event);ProgressBarHelper.removeProgressBar()"/-->	
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="49" width="100%" horizontalAlign="center">
+		<mx:Label text="Campo Pesquisa"/>
+		<mx:TextInput id="campoPesquisa" toolTip="Digite o número da OS, Fornecedor, Tipo de Serviço de Terceiros ou o Status do Serviço de Terceiros"/>
+		<mx:Button label="Pesquisar" click="findHistoricoOs()"/>
+	</mx:HBox>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Situação Serviços de Terceiros" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:VBox x="0" y="75" width="100%" horizontalAlign="center" height="100%">
+		<mx:DataGrid width="100%" height="75%" id="gridServTerc" doubleClickEnabled="true"  change="gridServTerc_changeHandler(event)">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Situação" width="60">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="{data.urlStatus}" width="15"  height="15" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="OS" dataField="numeroOs"/>
+				<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Local" dataField="descricaoLocalServico"/>
+				<!--mx:DataGridColumn headerText="Segmento" dataField="numeroSegmento"/-->
+				<mx:DataGridColumn headerText="Job Control" dataField="jobControl"/>
+				<mx:DataGridColumn headerText="Fornecedor" dataField="descricaoFornecedor"/>
+				<!--mx:DataGridColumn headerText="QTD." dataField="qtdServTerceiros"/-->
+				<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+				<mx:DataGridColumn headerText="Obs">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:TextArea text="{data.obs}"/>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Data Entrega">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox  horizontalAlign="center">
+								<mx:Image source="img/date.png"  width="15" buttonMode="true" visible="{(data.dataPrevisaoEntrega == null)? true : false}"  includeInLayout="{(data.dataPrevisaoEntrega == null)? true : false}" toolTip="Data Entrega" height="15" click="{dispatchEvent(new Event('DATAENTREGA', true))}"/>
+								<mx:Label text="{data.dataPrevisaoEntrega}" visible="{(data.dataPrevisaoEntrega == null)? false : true}"  includeInLayout="{(data.dataPrevisaoEntrega == null)? false : true}" click="{dispatchEvent(new Event('DATAENTREGA', true))}"/>
+							</mx:HBox>	
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Status OS">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalAlign="middle" verticalGap="2" horizontalAlign="center" backgroundColor="{(data.statusNegociacaoConsultor == 'A')?0x99FF99:(data.statusNegociacaoConsultor == 'P')?0xFFCC00:(data.statusNegociacaoConsultor == 'R')?0x99FF6347:0xFFFFFF}">
+							<mx:Label text="{data.statusNegociacao}" buttonMode="true" height="15"/>
+						</mx:VBox>
+					</mx:Component>                            
+				</mx:itemRenderer> 				
+				</mx:DataGridColumn>	
+				<mx:DataGridColumn headerText="Status" dataField="statusServTerceiros"/>
+				<!--mx:DataGridColumn headerText="Detalhes" width="63">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/detalhes.png"  width="15" buttonMode="true" visible="{(data.arquivoDetalhe.length > 0)? true : false}"  toolTip="Detalhes Serviços Terceiros" height="15" click="{dispatchEvent(new Event('IMPRIMIRDETALHES', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				<mx:DataGridColumn headerText="NF" width="70">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center" verticalAlign="middle">
+								<mx:Image source="img/contrato.png"  width="15" buttonMode="true"  toolTip="Imprimir Nota Fiscal" height="15" click="{dispatchEvent(new Event('IMPRIMIRNF', true))}"/>
+								<mx:Image source="img/download.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('VISUALIZAR', true)) }" />
+							</mx:HBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:DataGrid width="100%" height="57" id="gridHistoricoServTerceiros">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Envio&#13;Metrologia" dataField="dataEnvioMetrologia"/>
+				<mx:DataGridColumn headerText="Func. envio&#13;Metrologia" dataField="idFuncEnvioMetrologia"/>
+				<mx:DataGridColumn headerText="Obs envio&#13;Metrologia" dataField="obsEnvioMetrologia">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsEnvioMetrologia}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Envio&#13;Nota Fiscal" dataField="dataEnvioNotaFiscal"/>
+				<mx:DataGridColumn headerText="Func. envio&#13;Nota Fiscal" dataField="idFuncEnvioNotaFiscal"/>
+				<mx:DataGridColumn headerText="Obs envio&#13;Nota Fiscal" dataField="obsEnvioNotaFiscal">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsEnvioNotaFiscal}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Envio&#13;Recepção" dataField="dataEnvioRecepcao"/>
+				<mx:DataGridColumn headerText="Func. envio&#13;Recepção" dataField="idFuncEnvioRecepcao"/>
+				<mx:DataGridColumn headerText="Obs envio&#13;Recepção" dataField="obsEnvioRecepcao">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsEnvioRecepcao}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Envio&#13;Fornecedor" dataField="dataEnvioFornecedor"/>
+				<mx:DataGridColumn headerText="Func. envio&#13;Fornecedor" dataField="idFuncEnvioFornecedor"/>
+				<mx:DataGridColumn headerText="Obs envio&#13;Fornecedor" dataField="obsEnvioFornecedor">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsEnvioFornecedor}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Finalização&#13;Fornecedor" dataField="dataFinalizadoFornecedor"/>
+				<mx:DataGridColumn headerText="Func. final.&#13;Fornecedor" dataField="idFuncFinalizadoFornecedor"/>
+				<mx:DataGridColumn headerText="Obs final.&#13;Fornecedor" dataField="obsFinalizadoFornecedor">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsFinalizadoFornecedor}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Receb.&#13;Recepção" dataField="dataEntradaEnvioMetrologia"/>
+				<mx:DataGridColumn headerText="Func. rec.&#13;Recepção" dataField="idFuncEntradaEnvioMetrologia"/>
+				<mx:DataGridColumn headerText="Obs rec.&#13;Recepção" dataField="obsEntradaEnvioMetrologia">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsEntradaEnvioMetrologia}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Aprovação&#13;Metrologia" dataField="dataAprovacaoMetrologia"/>
+				<mx:DataGridColumn headerText="Func. aprov.&#13;Metrologia" dataField="idFuncAprovacaoMetrologia"/>
+				<mx:DataGridColumn headerText="Obs aprov.&#13;Metrologia" dataField="obsAprovacaoMetrologia">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsAprovacaoMetrologia}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+				<mx:DataGridColumn headerText="Rejeição&#13;Metrologia" dataField="dataRejeicaoMetrologia"/>
+				<mx:DataGridColumn headerText="Func. rej.&#13;Metrologia" dataField="idFuncRejeicaoMetrologia"/>
+				<mx:DataGridColumn headerText="Obs rej.&#13;Metrologia" dataField="obsRejeicaoMetrologia">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/information.png" width="15" toolTip="{data.obsRejeicaoMetrologia}" buttonMode="true" height="15"  />
+							</mx:HBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</mx:Canvas>

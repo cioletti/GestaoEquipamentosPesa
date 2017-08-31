@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Segmento" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1268" height="540" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.GestaoEquipamentosBean;
+			import bean.JobCodeBean;
+			import bean.JobControlBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;			
+			public var cptcd:popUpCptcd;
+			public var jbcd:PopUpJbcd;
+			public var operacao:CriarOperacao;
+			private var pecas:Pecas;
+			private var verPecas:VerificaPecas;
+			private var verPecasBO:VerificaPecasBO;
+			private var numeroOs:String;
+			private var idCheckin:Number;
+			public var checkInObj:CheckinBean;
+			private var prefixo:String;
+			private var modelo:String;
+			private var urlReport:String;
+			private var _usuarioBean:UsuarioBean;
+			private var gestaoEquipamentosBean:GestaoEquipamentosBean;
+
+			
+			public function init(idCheckin:Number):void{
+				
+				this.idCheckin = idCheckin;	
+				serviceController.findAllSegmentoPedido(idCheckin);
+				
+			}
+			private function onResultFindAllSegmento(event:ResultEvent):void{
+				segmentoGrid.dataProvider = event.result;
+			}
+			
+			
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<!--mx:method name="findAllJobCode" result="onResultFindAllJobCode(event);ProgressBarHelper.removeProgressBar()"/-->
+		<mx:method name="findAllSegmentoPedido" result="onResultFindAllSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="SegmentoCanvas" backgroundColor="white">
+		<mx:HBox x="0" y="0" width="100%" height="507">
+			<mx:DataGrid width="100%" id="segmentoGrid" height="100%" >
+				<mx:columns>
+					<mx:DataGridColumn headerText="Segmento" dataField="numeroSegmento" />
+					<mx:DataGridColumn headerText="Job&#13;Control" dataField="jbctStr"/>
+					<mx:DataGridColumn headerText="Job Code" dataField="jbcdStr"/>
+					<mx:DataGridColumn headerText="Componente&#13;Code" dataField="cptcdStr"/>
+					<mx:DataGridColumn headerText="Horas" dataField="horas"/>
+					<mx:DataGridColumn headerText="Qtd.&#13;Comp." dataField="qtdComp"/>
+					<mx:DataGridColumn headerText="Data&#13;Liberação&#13;Segmento" dataField="dataLiberacaoPecas"/>
+					<mx:DataGridColumn headerText="Data&#13;Término&#13;Serviço" dataField="dataTerminoServico"/>
+					<mx:DataGridColumn headerText="Número&#13;Documento" dataField="numeroDoc"/>
+					<mx:DataGridColumn headerText="Pedido&#13;Colocado" dataField="pedido"/>
+					<mx:DataGridColumn headerText="Mecânico&#13;Responsável&#13;Peças" dataField="nomeFuncionarioPecas"/>
+					<mx:DataGridColumn headerText="Msg. DBS" dataField="msgDbs" width="300" >
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center" backgroundColor="{(data.codErroDbs == '00')?0x99FF99:0x99FF6347}">
+									<mx:Label  text="{data.msgDbs}"  />
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<!--mx:DataGridColumn headerText="Operações" dataField="operacao">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/operacao.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('OPERACAO', true)) }" />
+								</mx:VBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn-->
+					<!--mx:DataGridColumn headerText="Excluir&#13;Editar" id="columnExcluir">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:HBox verticalGap="2" horizontalAlign="center">
+									
+									<mx:Image source="img/remover.png" width="15"  id="excluirSegmento" buttonMode="true" height="15"  click="{dispatchEvent(new Event('REMOVERSEGMENTO', true)) }" toolTip="Excluir Segmento!" />
+									<mx:Image source="img/edit.png" width="15"  id="editarSegmento" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EDITSEGMENTO', true)) }" toolTip="Editar segmento!"/>
+									<mx:Image source="img/editJobControl.png" width="15"  id="editarJobControl" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EDITJOBCONTROL', true)) }" toolTip="Editar Job Control!"/>
+								</mx:HBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn-->				  
+					
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:HBox>
+		
+		
+		<!--mx:HBox x="0" y="165" width="100%">
+			
+			<mx:Text text="N. Segmento"/>	
+			<mx:TextInput x="350" y="50" id="segmentoText" width="40" maxChars="7"  restrict="[0-9]"/>
+			<mx:Text text="Job Control"/>	
+			<mx:ComboBox width="112" x="258" enabled="true" y="113" prompt="Selecione"  id="jobControlCbx" labelField="descricao" selectedIndex="-1"></mx:ComboBox>
+			<mx:Text text="Job Code"/>
+			<mx:ComboBox id="jobCodeCbx" labelField="label" prompt="Selecione" change="jobCodeCbx_changeHandler(event)"></mx:ComboBox>
+			<mx:Text x="287" y="51" text="Comp.Code"/>
+			<mx:TextInput x="350" y="50" enabled="false" id="cptcdText"/>
+			<mx:Button label="Pesquisar" click="popupCptcd()"/>
+			<mx:Text text="H. Segmento"/>
+			<control:DecimalInput editable="true"  id="horasSegmento" width="41" maxChars="6" enabled="false"  precision="2" currencyFormat="us" useThousandsSeparator="true"/>
+			<mx:Text text="Qtd. Comp&#xa;"/>
+			<mx:TextInput width="40" restrict="[0-9]" maxChars="5" id="qtdCompText"/>
+			
+		</mx:HBox-->
+	</mx:Canvas>
+</util:ModuleTitleWindow>

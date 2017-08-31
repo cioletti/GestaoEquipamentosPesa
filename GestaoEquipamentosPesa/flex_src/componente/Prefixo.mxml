@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.PrefixoBean;
+			import bean.TreeBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var myValidators: Array;
+			private var prefixoBean: PrefixoBean = new PrefixoBean();
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			private var urlLogin:String;
+			private var tipoTree:String = 'GE';
+			
+			
+			public function init(urlLogin:String): void{
+				this.urlLogin = urlLogin;
+				gridPrefixo.addEventListener("EXCLUIRPREFIXO", removerPrefixo);
+				serviceController.findAllFamilia();
+				myValidators = new Array();
+				myValidators.push(campoModeloCbx);				
+				myValidators.push(campoPrefixo);				
+				myValidators.push(campoValorPrefixo);
+				
+				//myValidators.push(campoValorCusto);				
+			}
+			
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = event.result;
+			}
+			
+			protected function familiaCbx_changeHandler(event:ListEvent):void{				
+				serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+				this.novo();
+			}
+			
+			private function onResultFindAllTreePai(event:ResultEvent):void{				
+				
+				modeloCbx.dataProvider = null;
+				listPaiTree.removeAll();
+				listPaiTree.addAll(event.result as ArrayCollection);
+				modeloCbx.dataProvider = listPaiTree;				
+			}
+			
+/* 			private function onResultFindAllModelo(event:ResultEvent): void{
+				modeloCbx.dataProvider = ArrayCollection(event.result);
+			} */
+			
+			private function onResultFindAllPrefixo(event:ResultEvent): void{
+				gridPrefixo.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function salvarPrefixo(): void{
+				var validatorErrorArray: Array = Validator.validateAll(myValidators);;
+				var isValidForm: Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					prefixoBean.descricao = prefixoText.text.toUpperCase();
+					prefixoBean.idModelo =  TreeBean(modeloCbx.selectedItem).idArv;
+					prefixoBean.valor = valorPrefixo.text;
+					//prefixoBean.valorCusto = valorCusto.text;
+					serviceController.salvarPrefixo(prefixoBean);
+				} else {
+					var err: ValidationResultEvent;
+					var errorMessageArray: Array = [];
+					for each (err in validatorErrorArray) {
+						var errField: String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Formulário Inválido", Alert.OK);
+				}
+			}
+			
+			private function onResultSalvarPrefixo(event:ResultEvent): void{
+				if(event.result != null){
+					prefixoBean = PrefixoBean(event.result);
+					Alert.show("Transação realizada com sucesso.");
+					serviceController.findAllPrefixo(TreeBean(modeloCbx.selectedItem).idArv);
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação ou já existe o prefixo informado!");
+				}
+			}
+			
+			private function removerPrefixo(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					prefixoBean = PrefixoBean(gridPrefixo.selectedItem);
+					serviceController.removerPrefixo(prefixoBean);	
+				}
+			}
+			
+			private function onResultRemoverPrefixo(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					Alert.show("Prefixo excluído com sucesso.");
+					ArrayCollection(gridPrefixo.dataProvider).removeItemAt(gridPrefixo.selectedIndex);
+					limparCampos();
+				}else{
+					Alert.show("Ocorreu um erro ao excluir Prefixo!");
+				}
+			}
+			
+			private function gridDoubleClick(): void{
+				if(gridPrefixo.selectedIndex != -1) {
+					prefixoBean = PrefixoBean(gridPrefixo.selectedItem);
+					prefixoText.text = prefixoBean.descricao;
+				}
+			}			
+			
+			private function limparCampos(): void{
+				prefixoBean = new PrefixoBean();
+				modeloCbx.selectedIndex = -1;
+				prefixoText.text = "";
+				valorPrefixo.text = "";
+				//valorCusto.text = "";
+			}
+			
+			private function novo(): void{
+				limparCampos();
+				prefixoText.setFocus();
+			}
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				this.limparCampos();
+			}
+			protected function modeloCbx_changeHandler(event:ListEvent):void
+			{
+				prefixoBean = new PrefixoBean();
+				prefixoText.text = "";
+				valorPrefixo.text = "";
+				//valorCusto.text = "";
+				serviceController.findAllPrefixo(TreeBean(modeloCbx.selectedItem).idArv);				
+			}
+			protected function gridPrefixo_changeHandler():void{
+				if(gridPrefixo.selectedItem != null){		
+					if(gridPrefixo.selectedItem != null){
+						prefixoBean = PrefixoBean(gridPrefixo.selectedItem);
+						prefixoText.text = prefixoBean.descricao;
+						valorPrefixo.text = prefixoBean.valor;
+						//valorCusto.text = prefixoBean.valorCusto;
+						this.selectedModelo();
+					}
+				}
+			}
+			
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:TreeBean = TreeBean(modeloList.getItemAt(i));
+					if(modelo.idArv == PrefixoBean(gridPrefixo.selectedItem).id){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoPrefixo" requiredFieldError="Este campo é obrigatório!" required="true" source="{prefixoText}" property="text" />
+	<mx:StringValidator id="campoValorPrefixo" requiredFieldError="Este campo é obrigatório!" required="true" source="{valorPrefixo}" property="text" />
+	<!--mx:StringValidator id="campoValorCusto" requiredFieldError="Este campo é obrigatório!" required="true" source="{valorCusto}" property="text" /-->
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findAllPrefixo" result="onResultFindAllPrefixo(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="salvarPrefixo" result="onResultSalvarPrefixo(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerPrefixo" result="onResultRemoverPrefixo(event);ProgressBarHelper.removeProgressBar()"/>
+<!--	<mx:method name="findAllModelo" result="onResultFindAllModelo(event);ProgressBarHelper.removeProgressBar()"/>-->
+		<mx:method name="findAllTreePai" result="onResultFindAllTreePai(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Prefixo" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="62" width="100%" horizontalAlign="center" height="196">
+		<mx:HBox width="100%" horizontalAlign="center" height="183">
+			<mx:Form height="174" width="418">
+				<mx:FormItem label="Família" required="false" width="379">
+						<mx:ComboBox id="familiaCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandler(event)"></mx:ComboBox>
+					</mx:FormItem>
+				<mx:FormItem label="Modelo" required="true">
+					<mx:ComboBox id="modeloCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="modeloCbx_changeHandler(event)"></mx:ComboBox>
+				</mx:FormItem>
+				<mx:FormItem label="Prefixo" required="true">
+					<mx:TextInput id="prefixoText" maxChars="30"/>
+				</mx:FormItem>
+				<mx:FormItem label="Valor de Venda" required="true">
+					<control:DecimalInput editable="true"  id="valorPrefixo" width="93"  maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+				</mx:FormItem>
+				<!--mx:FormItem label="Valor de Custo" required="true">
+					<control:DecimalInput editable="true"  id="valorCusto" width="93"  maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+				</mx:FormItem-->
+				<mx:HBox horizontalAlign="center" width="100%">
+					<mx:Button label="Salvar" click="salvarPrefixo()"/>
+					<mx:Button label="Novo" click="button1_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:Form>
+		</mx:HBox>
+	</mx:HBox>
+	<mx:DataGrid x="0" y="266" width="100%" height="392" id="gridPrefixo" doubleClickEnabled="true" doubleClick="gridPrefixo_changeHandler()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Prefixo" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Valor de Venda" dataField="valor"/>
+			<mx:DataGridColumn headerText="Excluir" dataField="excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRPREFIXO', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>	
+		</mx:columns>
+	</mx:DataGrid>	
+</mx:Canvas>

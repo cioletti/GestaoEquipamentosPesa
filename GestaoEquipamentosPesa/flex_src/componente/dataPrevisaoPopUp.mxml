@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Data Previsão" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.TipoFreteBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var idCheckin:Number;
+			private var checkinBean:CheckinBean;
+			
+			public function init(urlLogin:String, idCheckin:Number, checkinBean:CheckinBean):void{
+				this.urlLogin = urlLogin;
+				this.idCheckin = idCheckin;
+				this.checkinBean = checkinBean;
+				//serviceController.findDataPrevisao(idCheckin);
+				serviceController.findAllFrete();
+			}
+			
+			private function onResultFindAllFrete(event:ResultEvent): void{
+				tipoFreteCbx.dataProvider = ArrayCollection(event.result);
+				this.selectedTipoFrete();
+			}
+			
+			private function selectedTipoFrete():void{
+				var tipoFreteList:ArrayCollection = ArrayCollection(tipoFreteCbx.dataProvider);
+				for(var i:int=0; i < tipoFreteList.length; i++){
+					var tipo:TipoFreteBean = TipoFreteBean(tipoFreteList.getItemAt(i));
+					if(tipo.id == checkinBean.idTipoFrete){
+						tipoFreteCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function saveDataPrevisao():void{
+				if(this.checkinBean.descricaoNegociacaoConsultor == "REJEITADA"){
+					Alert.show("Não é possível alterar a data de previsão de uma OS rejeitada.");
+						return;
+				}					
+					if(dataPrevisao.text != null && dataPrevisao.text != "" && tipoFreteCbx.selectedIndex != -1){
+						serviceController.saveDataPrevisao(idCheckin, dataPrevisao.text, TipoFreteBean(tipoFreteCbx.selectedItem));
+					}else{
+						Alert.show("Todos os campos são origatórios", "Alerta!");
+					}
+				}
+			
+			private function onResultSaveDataPrevisao(event:ResultEvent):void{
+				if(event.result != false){
+					Alert.show("Data salva com sucesso", "Alerta");	
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao tentar salvar a data","Alerta");
+				}
+			}
+//			private function onResultFindDataPrevisao(event:ResultEvent):void{
+//				if(event.result != null){
+//					var date:Array = String(event.result).split(" ");
+//					var dateAux:String = date[0];
+//					var dateFormat:Array = dateAux.split("-");				
+//					dataPrevisao.text = dateFormat[2].toString() +"/"+ dateFormat[1].toString()+"/"+ dateFormat[0].toString();
+//					
+//				}
+//			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="saveDataPrevisao" result="onResultSaveDataPrevisao(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllFrete" result="onResultFindAllFrete(event);ProgressBarHelper.removeProgressBar()"/>	
+		<!--mx:method name="findDataPrevisao" result="onResultFindDataPrevisao(event);ProgressBarHelper.removeProgressBar()"/-->
+	</mx:RemoteObject>
+	<mx:Text x="95.5" y="51" text="Data"/>
+	<mx:Button x="148" y="141" label="Salvar" click="saveDataPrevisao()" />
+	<mx:DateField x="134.5" y="50" id="dataPrevisao" formatString="DD/MM/YYYY" width="103" dayNames="{new Array('D','S','T','Q','Q','S','S')}" monthNames="{new Array('JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO') }"/>
+	<mx:Label text="Tipo frete:" x="62.5" y="82"/>
+	<mx:ComboBox prompt="selecione" id="tipoFreteCbx" x="134.5" y="80" labelField="tipoFrete"/>
+	
+	
+	
+</util:ModuleTitleWindow>

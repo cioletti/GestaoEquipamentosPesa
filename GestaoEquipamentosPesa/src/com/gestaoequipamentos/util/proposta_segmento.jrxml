@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="proposta_segmento" pageWidth="555" pageHeight="802" columnWidth="515" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String">
+		<defaultValueExpression><![CDATA["C:\\projetos\\web\\projetos\\marcosa_22_02_2012\\GestaoEquipamentos\\GestaoEquipamentos\\WebContent\\WEB-INF\\proposta\\"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="ID_CHECHIN" class="java.math.BigDecimal"/>
+	<parameter name="PORC_SERV_TERC" class="java.lang.String"/>
+	<parameter name="PORC_FRETE" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select seg1.id,seg1.numero_segmento, seg1.descricao_job_code||' / '||seg1.descricao_comp_code descricao, 0 id_operacao, null id_doc_seg_oper, seg1.qtd_comp, seg1.horas_prevista,
+(
+select (((((pre.valor_de_venda * ch.fator_cliente)*
+							(select c.fator from ge_complexidade c
+							where c.id =
+							(select p.id_complexidade from ge_preco p where p.id_modelo = (select a.id_arv from ge_arv_inspecao a where a.descricao = palm.modelo and a.id_familia = palm.id_familia)
+							 and p.id_prefixo = (select pre.id from ge_prefixo pre where pre.descricao = substr(palm.serie,0,4) and pre.id_modelo = (select a.id_arv from ge_arv_inspecao a where a.descricao = palm.modelo and a.id_familia = palm.id_familia))
+							 and p.comp_code = seg.com_code
+							 and p.job_code = seg.job_code )
+							) * decode(ch.fator_urgencia,'S', (select fator_urgencia from ge_fator), 1)) * seg.qtd_comp))  * TO_NUMBER(replace(seg.horas_prevista, '.',',')))
+
+							from ge_check_in ch, ge_segmento seg, ge_os_palm palm, ge_prefixo pre
+							where ch.id = seg1.id_checkin
+							and ch.id = seg.id_checkin
+							and ch.id_os_palm = palm.idos_palm
+							and pre.descricao = substr(palm.serie,0,4)
+              and seg.id = seg1.id
+ and pre.id_modelo = (select a.id_arv from ge_arv_inspecao a where a.descricao = palm.modelo and a.id_familia = palm.id_familia)
+
+) valor_total_hora,
+(
+ select decode(st.valor, null,0 , st.valor)  from ge_segmento seg, ge_segmento_serv_terceiros st
+				  	where seg.id = st.id_segmento
+				  	and seg.id = seg1.id
+)* TO_NUMBER($P{PORC_SERV_TERC}) serv_terceiros
+
+from ge_segmento seg1
+where seg1.id not in (select id_segmento from ge_doc_seg_oper)
+and seg1.id_checkin = $P{ID_CHECHIN}
+union
+select seg2.id,seg2.numero_segmento, seg2.descricao_job_code||' / '||seg2.descricao_comp_code descricao, decode(oper.id_operacao, null,0,oper.id_operacao), oper.id_doc_seg_oper id_doc_seg_oper, seg2.qtd_comp, seg2.horas_prevista,
+
+(
+select (((((pre.valor_de_venda * ch.fator_cliente)*
+							(select c.fator from ge_complexidade c
+							where c.id =
+							(select p.id_complexidade from ge_preco p where p.id_modelo = (select a.id_arv from ge_arv_inspecao a where a.descricao = palm.modelo and a.id_familia = palm.id_familia)
+							 and p.id_prefixo = (select pre.id from ge_prefixo pre where pre.descricao = substr(palm.serie,0,4) and pre.id_modelo = (select a.id_arv from ge_arv_inspecao a where a.descricao = palm.modelo and a.id_familia = palm.id_familia))
+							 and p.comp_code = seg.com_code
+							 and p.job_code = seg.job_code )
+							) * decode(ch.fator_urgencia,'S', (select fator_urgencia from ge_fator), 1)) * seg.qtd_comp))  * TO_NUMBER(replace(seg.horas_prevista, '.',',')))
+
+							from ge_check_in ch, ge_segmento seg, ge_os_palm palm, ge_prefixo pre
+							where ch.id = seg2.id_checkin
+							and ch.id = seg.id_checkin
+							and ch.id_os_palm = palm.idos_palm
+							and pre.descricao = substr(palm.serie,0,4)
+              and seg.id = seg2.id
+	     and pre.id_modelo = (select a.id_arv from ge_arv_inspecao a where a.descricao = palm.modelo and a.id_familia = palm.id_familia)
+
+) valor_total_hora,
+(
+ select decode(st.valor, null,0 , st.valor)  from ge_segmento seg, ge_segmento_serv_terceiros st
+				  	where seg.id = st.id_segmento
+				  	and seg.id = seg2.id
+) * TO_NUMBER($P{PORC_SERV_TERC}) serv_terceiros
+
+
+from ge_segmento seg2,
+(
+select distinct s.id, op.id_operacao, max(op.id) id_doc_seg_oper
+from ge_segmento s left join ge_doc_seg_oper op on op.id_segmento = s.id
+
+where s.id_checkin = $P{ID_CHECHIN}
+
+group by s.id , op.id_operacao) oper
+where oper.id = seg2.id
+order by 2]]>
+	</queryString>
+	<field name="ID" class="java.math.BigDecimal"/>
+	<field name="NUMERO_SEGMENTO" class="java.lang.String"/>
+	<field name="DESCRICAO" class="java.lang.String"/>
+	<field name="ID_OPERACAO" class="java.math.BigDecimal"/>
+	<field name="ID_DOC_SEG_OPER" class="java.math.BigDecimal"/>
+	<field name="QTD_COMP" class="java.math.BigDecimal"/>
+	<field name="HORAS_PREVISTA" class="java.lang.String"/>
+	<field name="VALOR_TOTAL_HORA" class="java.math.BigDecimal"/>
+	<field name="SERV_TERCEIROS" class="java.math.BigDecimal"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="42">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="22" width="32" height="20" backcolor="#CCCCCC"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<text><![CDATA[SEG.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="32" y="22" width="264" height="20" backcolor="#CCCCCC"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<text><![CDATA[DESCRIÇÃO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="296" y="22" width="56" height="20" backcolor="#CCCCCC"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<text><![CDATA[QTD. COMP.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="352" y="22" width="61" height="20" backcolor="#CCCCCC"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<text><![CDATA[M. OBRA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="413" y="22" width="102" height="20" backcolor="#CCCCCC"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<text><![CDATA[SERV.TERCEIROS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="0" width="515" height="22" forecolor="#000000" backcolor="#E8E8E8"/>
+				<box>
+					<topPen lineWidth="1.0" lineColor="#999999"/>
+					<bottomPen lineWidth="1.0" lineColor="#999999"/>
+				</box>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Times New Roman" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[4. DESCRIÇÃO DE PEÇAS E SERVIÇO(S)]]></text>
+			</staticText>
+		</band>
+	</title>
+	<detail>
+		<band height="104">
+			<subreport>
+				<reportElement x="0" y="20" width="515" height="41" isRemoveLineWhenBlank="true"/>
+				<subreportParameter name="SUBREPORT_DIR">
+					<subreportParameterExpression><![CDATA[$P{SUBREPORT_DIR}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="ID_OPERACAO">
+					<subreportParameterExpression><![CDATA[$F{ID_OPERACAO}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="java.lang.String"><![CDATA[$P{SUBREPORT_DIR} + "proposta_segmento_operacao.jasper"]]></subreportExpression>
+			</subreport>
+			<subreport>
+				<reportElement x="0" y="61" width="515" height="43" isRemoveLineWhenBlank="true"/>
+				<subreportParameter name="PORC_FRETE">
+					<subreportParameterExpression><![CDATA[$P{PORC_FRETE}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="SUBREPORT_DIR">
+					<subreportParameterExpression><![CDATA[$P{SUBREPORT_DIR}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="ID_DOC_SEG_OPER">
+					<subreportParameterExpression><![CDATA[$F{ID_DOC_SEG_OPER}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="TOTAL_MAO_DE_OBRA">
+					<subreportParameterExpression><![CDATA[($F{VALOR_TOTAL_HORA} == null)? BigDecimal.ZERO:$F{VALOR_TOTAL_HORA}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression class="java.lang.String"><![CDATA[$P{SUBREPORT_DIR} + "proposta_pecas.jasper"]]></subreportExpression>
+			</subreport>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="296" y="0" width="56" height="20"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{QTD_COMP}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="¤ #,##0.00" isBlankWhenNull="true">
+				<reportElement x="352" y="0" width="61" height="20"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[($F{VALOR_TOTAL_HORA} == null)? BigDecimal.ZERO:$F{VALOR_TOTAL_HORA}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="¤ #,##0.00" isBlankWhenNull="true">
+				<reportElement x="413" y="0" width="103" height="20"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[($F{SERV_TERCEIROS} == null)?BigDecimal.ZERO:$F{SERV_TERCEIROS}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="0" width="32" height="20"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{NUMERO_SEGMENTO}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="32" y="0" width="264" height="20"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DESCRICAO}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+</jasperReport>

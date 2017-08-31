@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*" xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.FamiliaBean;
+			import bean.JobCodeBean;
+			import bean.PrecoBean;
+			import bean.PrefixoBean;
+			import bean.TreeBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.DragEvent;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			public var cptcd:popUpCptcd;
+			public var jbcd:PopUpJbcd;
+			public var clonarpopup:PopUpClonar;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var precoBean:PrecoBean = new PrecoBean();
+			private var prefixoBean: PrefixoBean = new PrefixoBean();
+			private var filtro:FileFilter = new FileFilter("Selecione o CSV(*.csv;)", "*.csv;");
+			private var uploadFile: FileReference;
+			private var tipoTree:String = 'GE';
+			[Bindable]
+			private var listPrefixoClone:ArrayCollection = new ArrayCollection();
+			private var listPrefixo:ArrayCollection = new ArrayCollection();
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			private var listPaiTreeClone:ArrayCollection = new ArrayCollection();
+			private var usuario:UsuarioBean;
+			
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				precificacaoGrid0Destino.addEventListener("EXCLUIRCADPRECO", removerCadPreco);
+				this.usuario = usuario;
+				this.urlLogin = urlLogin;
+				var che:CheckinBean = new CheckinBean();
+				
+				serviceController.findAllFamilia();
+//				serviceController.findAllModelo();
+				//serviceController.findAllPrefixo();
+				//serviceController.findAllPreco();
+				//if(usuario.siglaPerfil == 'SUPER' || usuario.siglaPerfil == 'RECP'){
+			}
+			
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = event.result;
+				familiaCbx0Destino.dataProvider = event.result;
+			}			
+
+			private function onResultFindAllModelo (event:ResultEvent):void{
+				modeloCbx.dataProvider = event.result;
+			}
+			
+			
+			private function onResultFindAllModeloClone (event:ResultEvent):void{
+				modeloCbx0Destino.dataProvider = event.result;
+			}
+			private function onResultFindAllPrefixo (event:ResultEvent):void{
+				prefixoCbx.dataProvider = null;
+				listPrefixo.removeAll();
+				listPrefixo.addAll(event.result as ArrayCollection);
+				prefixoCbx.dataProvider = listPrefixo;
+				if(PrecoBean(precificacaoGrid.selectedItem) != null){
+					var prefixoList:ArrayCollection = ArrayCollection(prefixoCbx.dataProvider);
+					for(var i:int=0; i < prefixoList.length; i++){
+						var pre:PrefixoBean = PrefixoBean(prefixoList.getItemAt(i));
+						if(pre.id == PrecoBean(precificacaoGrid.selectedItem).idPrefixo){
+							prefixoCbx.selectedIndex = i;
+							break;
+						}
+					}
+				}
+			}
+			
+			private function onResultFindAllPrefixoClone (event:ResultEvent):void{
+				prefixoCbx0Destino.dataProvider = null;
+				listPrefixoClone.removeAll();
+				listPrefixoClone.addAll(event.result as ArrayCollection);
+				prefixoCbx0Destino.dataProvider = listPrefixoClone;
+				if(PrecoBean(precificacaoGrid0Destino.selectedItem) != null){
+					var prefixoListClone:ArrayCollection = ArrayCollection(prefixoCbx0Destino.dataProvider);
+					for(var i:int=0; i < prefixoListClone.length; i++){
+						var pre:PrefixoBean = PrefixoBean(prefixoListClone.getItemAt(i));
+						if(pre.id == PrecoBean(precificacaoGrid0Destino.selectedItem).idPrefixo){
+							prefixoCbx0Destino.selectedIndex = i;
+							break;
+						}
+					}
+				}
+			}
+
+//			private function onResultFindAllJobCode(event:ResultEvent):void{
+//				jobCodeCbx.dataProvider = event.result;
+//				
+//			}
+
+
+			private function onChangeModelo(event:ListEvent):void{
+				prefixoBean = new PrefixoBean();
+				serviceController.findAllPrefixo(TreeBean(modeloCbx.selectedItem).idArv);
+				prefixoCbx.selectedIndex = -1;
+				precificacaoGrid.dataProvider = null;
+			}
+			private function onChangeModeloClone(event:ListEvent):void{
+				prefixoBean = new PrefixoBean();
+				serviceController.findAllPrefixoClone(TreeBean(modeloCbx0Destino.selectedItem).idArv);
+				prefixoCbx0Destino.selectedIndex = -1;
+				precificacaoGrid0Destino.dataProvider = null;
+			}
+			
+			private function onChangePrefixo(event:ListEvent):void{
+				//prefixoBean = new PrefixoBean();
+				serviceController.findPrecoModPre(PrefixoBean(prefixoCbx.selectedItem).id,TreeBean(modeloCbx.selectedItem).idArv);
+			}	
+			private function onChangePrefixoClone(event:ListEvent):void{
+				//prefixoBean = new PrefixoBean();
+				serviceController.findPrecoModPreClone(PrefixoBean(prefixoCbx0Destino.selectedItem).id,TreeBean(modeloCbx0Destino.selectedItem).idArv);
+			}	
+			
+			private function onResultFindPrecoModPre (event:ResultEvent):void{
+				precificacaoGrid.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindPrecoModPreClone (event:ResultEvent):void{
+				precificacaoGrid0Destino.dataProvider = ArrayCollection(event.result);
+			}
+			
+			
+		
+			
+			private function mostrarToolTip(item: Object):String{
+				var str:String = "";
+				
+				if ((item != null) && (item.descricaoServico != null) && (item.descricaoServico != "")) 
+				{
+					str = "DESCRIÇÃO SERVIÇO: " + item.descricaoServico + "\n";
+				}
+				return str;
+			}
+			
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{				
+				serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+				prefixoCbx.selectedIndex = -1;
+				modeloCbx.selectedIndex = -1;
+				precificacaoGrid.dataProvider = null;
+				
+			}
+			protected function familiaCbx_changeHandlerClone(event:ListEvent):void
+			{				
+				serviceController.findAllTreePaiClone(tipoTree, FamiliaBean(familiaCbx0Destino.selectedItem).id);
+				prefixoCbx0Destino.selectedIndex = -1;
+				precificacaoGrid0Destino.dataProvider = null;
+			}
+			
+			private function onResultFindAllTreePai(event:ResultEvent):void{				
+				
+				modeloCbx.dataProvider = null;
+				listPaiTree.removeAll();
+				listPaiTree.addAll(event.result as ArrayCollection);
+				modeloCbx.dataProvider = listPaiTree;
+				//this.novo();
+				
+			}
+			private function onResultFindAllTreePaiClone(event:ResultEvent):void{				
+				
+				modeloCbx0Destino.dataProvider = null;
+				listPaiTreeClone.removeAll();
+				listPaiTreeClone.addAll(event.result as ArrayCollection);
+				modeloCbx0Destino.dataProvider = listPaiTreeClone;
+				//this.novo();
+				
+			}
+			private function onResultClonarPrecoIndividual(event:ResultEvent):void{		
+				serviceController.findPrecoModPreClone(PrefixoBean(prefixoCbx0Destino.selectedItem).id,TreeBean(modeloCbx0Destino.selectedItem).idArv);
+//				prefixoCbx0Destino.dataProvider = null;
+//				listPrefixoClone.removeAll();
+//				listPrefixoClone.addAll(event.result as ArrayCollection);
+//				prefixoCbx0Destino.dataProvider = listPrefixoClone;
+//				if(PrecoBean(precificacaoGrid0Destino.selectedItem) != null){
+//					var prefixoListClone:ArrayCollection = ArrayCollection(prefixoCbx0Destino.dataProvider);
+//					for(var i:int=0; i < prefixoListClone.length; i++){
+//						var pre:PrefixoBean = PrefixoBean(prefixoListClone.getItemAt(i));
+//						if(pre.id == PrecoBean(precificacaoGrid0Destino.selectedItem).idPrefixo){
+//							prefixoCbx0Destino.selectedIndex = i;
+//							break;
+//						}
+//					}
+//				}
+				
+
+			}
+			
+			
+			private function dragClone():void{
+				var preco:PrecoBean = precificacaoGrid.selectedItem as PrecoBean;
+				//Alert.show(preco.jobCode,"Alerta");
+				
+				var listPreco:ArrayCollection = ArrayCollection(precificacaoGrid0Destino.dataProvider);
+				if(prefixoCbx0Destino.selectedIndex != -1){
+					for(var i:int = 0; i < listPreco.length; i++){
+						var precoAux:PrecoBean = PrecoBean(listPreco.getItemAt(i));
+						if(preco.jobCode == precoAux.jobCode && preco.descricaoCompCode == precoAux.descricaoCompCode){
+							Alert.show("Não é possível clonar o preço pois ele já existe!", "Alerta");
+							//precificacaoGrid0Destino.dropEnabled = false;
+							return;
+						}
+					}
+					//precificacaoGrid0Destino.dropEnabled = true;
+					serviceController.clonarPrecoIndividual(preco, TreeBean(modeloCbx0Destino.selectedItem).idArv, PrefixoBean(prefixoCbx0Destino.selectedItem).id);
+				}
+			}
+			
+			private function removerCadPreco (ev: Event):void{	
+				if(usuario.siglaPerfil != 'ADM'){
+					Alert.show("Somente o administrador pode remover uma precificação!", "Alerta");
+					return;
+				}
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					precoBean =  PrecoBean(precificacaoGrid0Destino.selectedItem);
+					serviceController.removerCadPreco(precoBean);					
+				}
+			}
+			
+			
+			private function onResultRemoverCadPreco(event: ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Cadastro excluído com sucesso.");					
+					ArrayCollection(precificacaoGrid0Destino.dataProvider).removeItemAt(precificacaoGrid0Destino.selectedIndex);
+					//serviceController.findPrecoModPre(PrefixoBean(prefixoCbx.selectedItem).id,TreeBean(modeloCbx.selectedItem).idArv);
+				}else{
+					Alert.show("Ocorreu um erro ao excluir o cadastro!");
+				}				
+			}
+	
+					
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelo" result="onResultFindAllModelo(event)" />
+		<mx:method name="findAllModeloClone" result="onResultFindAllModeloClone(event)" />
+		<mx:method name="findAllPrefixo" result="onResultFindAllPrefixo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllPrefixoClone" result="onResultFindAllPrefixoClone(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllJobCode" result="onResultFindAllJobCode(event)"/-->
+		<mx:method name="findPrecoModPre" result="onResultFindPrecoModPre(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findPrecoModPreClone" result="onResultFindPrecoModPreClone(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTreePai" result="onResultFindAllTreePai(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTreePaiClone" result="onResultFindAllTreePaiClone(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="clonarPrecoIndividual" result="onResultClonarPrecoIndividual(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerCadPreco" result="onResultRemoverCadPreco(event);ProgressBarHelper.removeProgressBar()" />
+		
+	</mx:RemoteObject>
+
+	<!--mx:NumberValidator id="campoJobCodeCbx" source="{jobCodeCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" /-->
+	
+	<mx:VBox width="100%" height="100%" horizontalAlign="center">
+		<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+			<mx:Label text="Clonar Precificação De Equipamentos" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:HBox width="100%" height="608">		
+			<mx:VBox height="100%" width="50%" horizontalAlign="center">
+				<mx:Form  width="499">
+					<mx:FormItem label="Família" required="false" width="379">
+						<mx:ComboBox id="familiaCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandler(event)"></mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Modelo" width="379" height="25">			
+						<mx:ComboBox id="modeloCbx" prompt="Selecione" labelField="descricao" change="onChangeModelo(event)"> </mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Prefixo" width="379" height="25" >
+						<mx:ComboBox id="prefixoCbx" prompt="Selecione" labelField="descricao" change="onChangePrefixo(event)"></mx:ComboBox>
+					</mx:FormItem>
+					
+				
+					<!--mx:FormItem label="Job Code" >			
+						<mx:ComboBox id="jobCodeCbx" prompt="Selecione" labelField="label"> </mx:ComboBox>
+					</mx:FormItem-->
+				</mx:Form>
+				<mx:Label text="Precificação Origem" fontWeight="bold"/>
+				
+				<mx:DataGrid height="100%" width="100%" dataTipFunction="mostrarToolTip" id="precificacaoGrid" doubleClickEnabled="true" doubleClick="dragClone()">
+					<mx:columns>
+						<mx:DataGridColumn headerText="Modelo" width="60" dataField="modeloStr" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Prefixo" width="60" dataField="prefixoStr" showDataTips="true"/>
+						<mx:DataGridColumn headerText="JobCode" width="200" dataField="jobCodeDescricao" showDataTips="true"/>
+						<mx:DataGridColumn headerText="CompCode" width="250" dataField="descricaoCompCode" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Qtd Horas" dataField="qtdHoras" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Complexidade" dataField="complexidadeStr" showDataTips="true"/>
+					</mx:columns>
+				</mx:DataGrid>
+				
+			
+			</mx:VBox>
+			<mx:VBox height="100%" width="50%" horizontalAlign="center">
+				<mx:Form  width="499">
+					<mx:FormItem label="Família" required="false" width="379">
+						<mx:ComboBox id="familiaCbx0Destino" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandlerClone(event)"></mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Modelo" width="379" height="25">			
+						<mx:ComboBox id="modeloCbx0Destino" prompt="Selecione" labelField="descricao" change="onChangeModeloClone(event)"> </mx:ComboBox>
+					</mx:FormItem>
+					<mx:FormItem label="Prefixo" width="379" height="25" >
+						<mx:ComboBox id="prefixoCbx0Destino" prompt="Selecione" labelField="descricao" change="onChangePrefixoClone(event)"></mx:ComboBox>
+					</mx:FormItem>
+					
+					
+				
+					<!--mx:FormItem label="Job Code" >			
+						<mx:ComboBox id="jobCodeCbx" prompt="Selecione" labelField="label"> </mx:ComboBox>
+					</mx:FormItem-->
+				</mx:Form>
+				<mx:Label text="Precificação Destino" fontWeight="bold"/>
+				<mx:DataGrid height="100%" width="100%" dataTipFunction="mostrarToolTip" id="precificacaoGrid0Destino" >
+					<mx:columns>
+						<mx:DataGridColumn headerText="Modelo"  width="60" dataField="modeloStr" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Prefixo"  width="60" dataField="prefixoStr" showDataTips="true"/>
+						<mx:DataGridColumn headerText="JobCode" width="200" dataField="jobCodeDescricao" showDataTips="true"/>
+						<mx:DataGridColumn headerText="CompCode" width="230" dataField="descricaoCompCode" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Qtd Horas" width="80" dataField="qtdHoras" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Complexidade" dataField="complexidadeStr" showDataTips="true"/>
+						<mx:DataGridColumn headerText="Excluir" dataField="excluir">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:VBox verticalGap="2" horizontalAlign="center">
+										<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRCADPRECO', true)) }" />
+									</mx:VBox>
+								</mx:Component> 	
+							</mx:itemRenderer>
+						</mx:DataGridColumn>	
+					</mx:columns>
+				</mx:DataGrid>
+				
+			
+			</mx:VBox>
+		</mx:HBox>
+	</mx:VBox>	
+	
+</mx:Canvas>

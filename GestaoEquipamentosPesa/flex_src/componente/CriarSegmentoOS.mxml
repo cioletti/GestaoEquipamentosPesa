@@ -1,0 +1,872 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Segmento" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1268" height="598" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.GestaoEquipamentosBean;
+			import bean.JobCodeBean;
+			import bean.JobControlBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;			
+			public var cptcd:popUpCptcd;
+			public var jbcd:PopUpJbcd;
+			public var operacao:CriarOperacao;
+			private var pecas:Pecas;
+			private var verPecas:VerificaPecas;
+			private var verPecasBO:VerificaPecasBO;
+			private var numeroOs:String;
+			private var idCheckin:Number;
+			public var checkInObj:CheckinBean;
+			private var prefixo:String;
+			private var modelo:String;
+			private var urlReport:String;
+			private var _usuarioBean:UsuarioBean;
+			private var gestaoEquipamentosBean:GestaoEquipamentosBean;
+
+			
+			public function init(urlLogin:String,  numeroOs:String, idCheckin:Number, checkInObj:CheckinBean,  prefixo:String, usuarioBean: UsuarioBean, gestaoEquipamentosBean:GestaoEquipamentosBean):void{
+				this.checkInObj = checkInObj;				
+				this.urlLogin = urlLogin;
+				this.numeroOs = numeroOs;
+				this.idCheckin = idCheckin;	
+				this.prefixo = prefixo;
+				this.modelo = checkInObj.modelo;
+				this._usuarioBean = usuarioBean;
+				this.gestaoEquipamentosBean = gestaoEquipamentosBean;
+
+				if(_usuarioBean.isAdm == true){
+					//pecasBO.visible = true;
+				}else{
+					//pecasBO.includeInLayout = false;
+					//pecasBO.visible = false;
+				}
+				
+				if(gestaoEquipamentosBean == null){
+					criarOs.visible = false;
+					criarOs.includeInLayout = false;
+				}
+				
+//				if(usuarioBean.login == 'sof') {
+//					pendenciasDePecas.visible = true;
+//				} else {
+//					pendenciasDePecas.visible = false;
+//				}		
+				
+				segmentoGrid.addEventListener("REMOVERSEGMENTO", confirmarExlusaoSegmento);	
+				segmentoGrid.addEventListener("EDITSEGMENTO", editarSegmento);	
+				segmentoGrid.addEventListener("EDITJOBCONTROL", editarJobControl);	
+				if(this.numeroOs == null || this.numeroOs == ''){
+					adicionarSegmento.enabled = true
+					sendPecasDbs.enabled = false;
+					salvar.enabled = false;
+					
+				}else{
+					//adicionarSegmento.enabled = false;
+					serviceController.findAllSegmentoTelaOs(idCheckin);
+					if(checkInObj.hasSendDbs == 'S'){
+						verificaPecas.enabled = true;
+						//adicionarSegmento.enabled = true
+						
+					}
+				}
+				segmentoGrid.addEventListener("OPERACAO", popupOperacao);
+				if(checkInObj.dataPrevisaoEntrega != null && checkInObj.dataPrevisaoEntrega != ''){
+					sendPecasDbs.enabled = false;
+					adicionarSegmento.enabled = false;
+					salvar.enabled = false;
+				}			
+				if(checkInObj.statusNegociacaoConsultor == 'A' || checkInObj.statusNegociacaoConsultor == 'R'){
+					hBoxButtonsSegmento.visible = false;
+					adicionarSegmento.enabled = false;
+				}
+				//serviceController.findAllJobCode();	
+				serviceController.findAllJobControl();
+			}
+			private function removePopUpPecas(obj:CloseEvent):void{
+				serviceController.findAllSegmentoTelaOs(idCheckin);
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function substituirServicoTerceiros():void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja copiar os serviços de terceiros para outra OS?", "Alerta", 3, this, alertClickHandlerSubstituirServTercOs);
+			}
+			
+			
+			private var osPopup:PopupOs = null;
+			private function alertClickHandlerSubstituirServTercOs(event:CloseEvent):void { 				
+				if (event.detail==Alert.YES) {	
+					if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '100' ){
+						Alert.show("Aguarde a resposta do DBS!","Alerta");
+					} else {
+						osPopup = new PopupOs();
+						osPopup.addEventListener(CloseEvent.CLOSE, removePopUpOs);
+						PopUpManager.addPopUp(osPopup,this,true);
+						PopUpManager.centerPopUp(osPopup)
+						osPopup.init(urlLogin, SegmentoBean(segmentoGrid.selectedItem), this.idCheckin);
+					}
+				}else{
+					if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '100' ){
+						Alert.show("Aguarde a resposta do DBS!","Alerta");
+					} else {
+						this.removerSegmento();
+					}
+				}	
+			}
+			
+			private function removePopUpOs(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(osPopup.wasTransfer == true){
+					this.removerSegmento();					
+				}
+			}
+			
+			private function confirmarExlusaoSegmento(ev: Event):void{
+				
+				if(SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == '46'){
+					substituirServicoTerceiros()
+				}else{
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("Deseja realmente excluir o Segmento?", "Alerta", 3, this, alertClickHandlerExcluirSegmento);
+				}
+			}
+			
+			private function alertClickHandlerExcluirSegmento(event:CloseEvent):void { 				
+				if (event.detail==Alert.YES) {	
+					if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '100' ){
+						Alert.show("Aguarde a resposta do DBS!","Alerta");
+					}else{
+						this.removerSegmento();						
+					}
+				}else{
+					return;
+				}	
+			}	
+			
+			private var popupEditarSegmento:PopupEditarSegmento = null;
+			private function editarSegmento(ev:Event):void{
+				if(SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == '046'){
+					Alert.show("Não é possível alterar o segmento 046!","Alerta");
+					return;
+				}
+				if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '100' ){
+					Alert.show("Aguarde a resposta do DBS!","Alerta");
+				}else{
+					if(checkInObj.statusNegociacaoConsultor != 'A' && checkInObj.statusNegociacaoConsultor != 'R'){
+						if(!isNaN(SegmentoBean(segmentoGrid.selectedItem).id) || SegmentoBean(segmentoGrid.selectedItem).id > 0){
+							if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '00'){
+									popupEditarSegmento = new PopupEditarSegmento();
+									popupEditarSegmento.addEventListener(CloseEvent.CLOSE, removePopUpEditarSegmento);
+									PopUpManager.addPopUp(popupEditarSegmento,this,true);
+									PopUpManager.centerPopUp(popupEditarSegmento)
+									popupEditarSegmento.init(urlLogin, SegmentoBean(segmentoGrid.selectedItem), this.idCheckin);	
+							}else{
+								Alert.show("Não é possivel editar o segmento!","Alerta");
+								return;
+							}
+						}
+					}else{
+						Alert.show("Não é possivel editar o segmento!","Alerta");
+						return;
+					}
+											
+				}
+			}
+			private function removePopUpEditarSegmento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllSegmentoTelaOs(idCheckin);
+			}
+			
+			
+			//private var popupObsJobControl:PopUpObsJobControl;
+			private function editarJobControl (ev:Event): void{
+				if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '00'){
+					serviceController.editJobControlSegmento(segmentoGrid.selectedItem, this.checkInObj, "");
+//					popupObsJobControl = new PopUpObsJobControl();
+//					popupObsJobControl.addEventListener(CloseEvent.CLOSE, removePopUpJobControl);
+//					PopUpManager.addPopUp(popupObsJobControl,this,true);
+//					PopUpManager.centerPopUp(popupObsJobControl)
+//					popupObsJobControl.init(urlLogin, SegmentoBean(segmentoGrid.selectedItem).observacaoJobControl);	
+				}
+			}
+			
+//			private function removePopUpJobControl(obj:CloseEvent):void{
+//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+//				if (popupObsJobControl.obsTxt != null && popupObsJobControl.isSave == true){
+//					serviceController.editJobControlSegmento(segmentoGrid.selectedItem, this.checkInObj, popupObsJobControl.obsTxt.text);
+//				}
+//			}
+			
+//			private function editarJobControl (ev:Event):void{	
+//				if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '00'){
+//					serviceController.editJobControlSegmento(segmentoGrid.selectedItem, this.checkInObj);
+//				}
+//			}
+			
+			private function onResultEditarJobControl(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Job Control editado!","Alerta");
+					this.close();
+				}else{
+					Alert.show("Não foi possivel editar o Job Control!","Alerta");					
+				}	
+			}
+			
+			private function removerSegmento(): void{
+				if(checkInObj.statusNegociacaoConsultor != 'A' && checkInObj.statusNegociacaoConsultor != 'R'){
+					if(!isNaN(SegmentoBean(segmentoGrid.selectedItem).id) || SegmentoBean(segmentoGrid.selectedItem).id > 0){
+						if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '99'){
+							serviceController.removerSegmentoComCodErro(SegmentoBean(segmentoGrid.selectedItem).id, checkInObj.numeroOs, SegmentoBean(segmentoGrid.selectedItem).numeroSegmento, SegmentoBean(segmentoGrid.selectedItem).idCheckin); // Remove segmento com código de erro 99 (erro no segmento) local e DBS.
+						}else if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '00'){
+							serviceController.removerSegmentoDBS(SegmentoBean(segmentoGrid.selectedItem).id, checkInObj.numeroOs, SegmentoBean(segmentoGrid.selectedItem).numeroSegmento)
+							
+						}
+						return;
+					}else{
+						ArrayCollection(segmentoGrid.dataProvider).removeItemAt(segmentoGrid.selectedIndex);//Pega a coleção do segmentoGrid e remove o item selecionado 
+					}
+					return;
+				}
+				
+				if(!isNaN(SegmentoBean(segmentoGrid.selectedItem).id) || SegmentoBean(segmentoGrid.selectedItem).id > 0){
+					Alert.show("Não é possivel excluir o segmento!","Alerta");
+					return;
+				}
+				//				if (SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == "01" || SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == "02"){//verifica se o campo tem essas expressões
+				//					Alert.show("Não é possivel excluir esse segmento!","Alerta");
+				//					return;
+				//				}else{				
+				ArrayCollection(segmentoGrid.dataProvider).removeItemAt(segmentoGrid.selectedIndex);//Pega a coleção do segmentoGrid e remove o item selecionado 
+				//					for(var i:int = 0; i < ArrayCollection(segmentoGrid.dataProvider).length; i++){ //Percorre a coleção 								
+				//						if (i < 9){
+				//							var temp:int = i+1;
+				//							ArrayCollection(segmentoGrid.dataProvider).getItemAt(i).numeroSegmento = '0' + temp;//Pega o primeiro elemento e remonta o array de forma correta (sem  elemento excluído)
+				//						}else{
+				//							ArrayCollection(segmentoGrid.dataProvider).getItemAt(i).numeroSegmento = i+1;
+				//						}
+				//					}
+				
+				//				}
+			}
+			private function onResultRemoverSegmentoComCodErro(event:ResultEvent):void{
+				if(event.result == true){
+					ArrayCollection(segmentoGrid.dataProvider).removeItemAt(segmentoGrid.selectedIndex);
+					Alert.show("Operação executada com sucesso!", "Alerta!");
+					return;
+				}else{
+					Alert.show("Ocorreu um erro ao executar a operação!", "Alerta!");
+					return;
+				}
+			}
+			
+			
+			private function popupCptcd(): void{
+				cptcd = new popUpCptcd();
+				cptcd.addEventListener(CloseEvent.CLOSE, removePopUpCptcd);
+				PopUpManager.addPopUp(cptcd,this,true);
+				PopUpManager.centerPopUp(cptcd)
+				cptcd.init(urlLogin);	
+			}
+			
+			private function removePopUpCptcd(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if (cptcd.cptcd != null){
+					cptcdText.text = cptcd.cptcdDescricao;
+					if(jobcdText.text !=  ""){
+						serviceController.findHoras(prefixo, jbcd.jbcd, cptcd.cptcdCode, modelo, checkInObj.idFamilia);
+					}
+				}
+			}
+			private function popupJbcd(): void{
+				jbcd = new PopUpJbcd();
+				jbcd.addEventListener(CloseEvent.CLOSE, removePopUpJbcd);
+				PopUpManager.addPopUp(jbcd,this,true);
+				PopUpManager.centerPopUp(jbcd)
+				jbcd.init(urlLogin);	
+			}
+			private function removePopUpJbcd(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if (jbcd.jbcd != null){
+					jobcdText.text = jbcd.jbcdDescricao;
+					if(cptcdText.text !=  ""){
+						serviceController.findHoras(prefixo, jbcd.jbcd, cptcd.cptcdCode, modelo, checkInObj.idFamilia);
+					}
+				}
+			}
+			private function popupOperacao(ev: Event): void{
+//				if(SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == "01" || SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == "02"){
+//					Alert.show("Não existe operação para esse segmento!", "Alerta");
+//					return;
+//				}
+				if(SegmentoBean(segmentoGrid.selectedItem).havePecas != 'S'){
+					operacao = new CriarOperacao();
+					operacao.addEventListener(CloseEvent.CLOSE, removePopUpOperacao);
+					PopUpManager.addPopUp(operacao,this,true);
+					PopUpManager.centerPopUp(operacao)
+					operacao.init(urlLogin,SegmentoBean(segmentoGrid.selectedItem), numeroOs, checkInObj, _usuarioBean);
+				}else{
+					Alert.show("O segmento possui peças, não é possível incluir operações!", "Alerta");
+				}
+			}
+			private function removePopUpOperacao(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+//			private function onResultFindAllJobCode(event:ResultEvent):void{
+//				jobCodeCbx.dataProvider = event.result;
+//				
+//			}
+			private function onResultFindAllSegmento(event:ResultEvent):void{
+				segmentoGrid.dataProvider = event.result;
+			}
+			
+			private function onResultFindAllJobControl(event:ResultEvent):void{
+				jobControlCbx.dataProvider = event.result;
+			}
+			
+			
+			private function adicionarJobcdGrid():void{ 
+				
+//				if(descricaoJobControl.text == ''){
+//					Alert.show("Por favor adicione a descrição do Job Control.","Alerta");
+//					return;
+//				}
+				if(segmentoText.text.length >= 3){
+					Alert.show("Só é permitido criar segmento com dois dígitos.","Alerta");
+					return;
+				}
+				if(segmentoText.text == ""){
+					Alert.show("Por favor adicione o número do segmento.","Alerta");
+					return;
+				}
+				if(jobControlCbx.selectedIndex == -1){ // Faz as validações dos campos.
+					Alert.show("Por favor adicione o Job Control","Alerta");
+					return;
+				}
+				if (jobcdText.text == ""){
+					Alert.show("Por favor adicione o Job Code","Alerta");
+					return;
+				}
+				if (cptcdText.text == ""){
+					Alert.show("Por favor adicione o Comp.Code","Alerta");
+					return;
+				}
+				if (horasSegmento.text == ""){
+					Alert.show("Por favor adicione a Quantidade de horas.","Alerta");
+					return;
+				}
+				if (qtdCompText.text == ""){
+					Alert.show("Por favor adicione a Quantidade de Componetes.","Alerta");
+					return;
+				}
+				
+				
+				var seg:SegmentoBean = new SegmentoBean(); //Instancia um objeto para poder setar os valores.
+				var segAux:SegmentoBean = new SegmentoBean();
+				//var jobCd: JobCodeBean = JobCodeBean (jobCodeCbx.selectedItem); //Coloca em uma variável item selecionado no comboBox 
+				seg.jbcd = jbcd.jbcd; //Pega o valor de id e seta no jbcd
+				seg.jbcdStr = jbcd.jbcdDescricao;// Pega o id e a descrição e seta jbcdStr
+				seg.cptcdStr = cptcdText.text;// Seta em cptcd o texto da caixa cptcdText (Comp.Code) 	
+				seg.cptcd = cptcdText.text.split(" - ")[0];
+				seg.jbctStr = jobControlCbx.selectedItem.descricao;
+				seg.qtdComp = Number(qtdCompText.text);
+				seg.numeroSegmento = segmentoText.text;
+				seg.idFuncionarioCriador = _usuarioBean.matricula;
+				seg.descricaojobControl = descricaoJobControl.text;
+//				var horas:Array = horasSegmento.text.split(":");
+//				if(horasSegmento.text != "" && horas.length > 1){
+//					var horasAux:String = horas[1].toString();
+//					if(horasAux.length < 2){
+//						Alert.show("Hora invalida!", "Alerta");
+//						horasSegmento.text = "";	
+//						return;				
+//					}
+//				}else{
+//					horasSegmento.text = "00:00";
+//				}
+				seg.horas = horasSegmento.text;
+				//var temp:int;
+				if(segmentoGrid.dataProvider == null || ArrayCollection(segmentoGrid.dataProvider).length == 0){ //Verifica se o Grid está vazio, se estiver cria um novo array. 
+					segmentoGrid.dataProvider = new ArrayCollection();
+					//temp = 1;
+				}				
+//				if(ArrayCollection(segmentoGrid.dataProvider).length == 2){
+//				 temp =  int(SegmentoBean(ArrayCollection (segmentoGrid.dataProvider).getItemAt(ArrayCollection (segmentoGrid.dataProvider).length-1)).numeroSegmento) + 1; // Contamos o grid pelas linhas e não pelo numero segmento					
+//				}else if(ArrayCollection(segmentoGrid.dataProvider).length > 0) {
+//					temp =  int(SegmentoBean(ArrayCollection (segmentoGrid.dataProvider).getItemAt(ArrayCollection (segmentoGrid.dataProvider).length-1)).numeroSegmento) + 1;
+//					segAux = (segmentoGrid.dataProvider).getItemAt(ArrayCollection (segmentoGrid.dataProvider).length-1);
+////					if(int(segAux.numeroSegmento) < 10){
+////					var array:Array = segAux.numeroSegmento.split("0");
+////					temp = (int (array[1]))+1;						
+////					}else{
+////						temp = (int (segAux.numeroSegmento))+ 1;
+////					}
+//				}
+//				if (temp < 10 ){ 
+//					seg.numeroSegmento = '0' + temp.toString(); // converte o numero de linhas para string para poder guardar na variável string
+//				}else{
+//					seg.numeroSegmento = temp.toString(); // converte o numero de linhas para string para poder guardar na variável string
+//				}		
+				
+				var numSeg:int =  int (seg.numeroSegmento);				
+				
+				if(String (numSeg).length < 2){					
+					seg.numeroSegmento = '0' + numSeg;					
+				}else{
+					seg.numeroSegmento = String (numSeg);
+				}
+				
+//				if(segmentoText.length < 2 ){
+//					seg.numeroSegmento = '0' + segmentoText.text;
+//				}else{
+//					var segTemp:int = int (seg.numeroSegmento);
+//					seg.numeroSegmento = segTemp.toString();
+//				}
+				
+				if(existeNumeroSegmento(seg.numeroSegmento)){
+					Alert.show("O número do segmento já existe ou é inválido!","Alerta!");
+					return;					
+				}
+				
+				ArrayCollection (segmentoGrid.dataProvider).addItem(seg); //Adiciona item ao Grid.
+				sendPecasDbs.enabled = false;
+			}
+			
+			private function existeNumeroSegmento(numeroSegmento:String):Boolean{
+				if(numeroSegmento == '00'){
+					return true;
+				}
+				var segList:ArrayCollection = ArrayCollection(segmentoGrid.dataProvider);
+				for(var i:int=0; i < segList.length; i++){
+					var segBean:SegmentoBean = SegmentoBean(segList.getItemAt(i));
+					if(segBean.numeroSegmento == numeroSegmento ){
+						return true;
+						break;
+					}
+				}
+				return false;
+			}
+			
+			private function fecharPoUp():void{
+				this.close();
+				
+			}
+			
+			private function sendPecasNewSegmento():void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente enviar os segmentos para o DBS? Após o envio, a operação não poderá ser desfeita!", "Alerta", 3, this, alertClickHandlerSegmento);				
+				
+			}
+			private function alertClickHandlerSegmento(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {		// (event.detail==Alert.YES)
+					serviceController.inserirSegmento(ArrayCollection(segmentoGrid.dataProvider), checkInObj);
+					this.close();
+				}else{
+					return;
+				}
+				
+				
+			}
+			
+			private function onResultInserirSegmento(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Segmento incluído com sucesso!", "Alerta");
+				}else if(Boolean(event.result) == false){
+					Alert.show("Não foi possível incluir o segmento!", "Alerta");
+				}
+				this.close();
+			}
+			
+			var popupPeaComSem00E:PopupPecaComSem00E;
+			private function doubleClickPecas():void{
+				if(segmentoGrid.selectedItem != null){
+//					if(SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == "01" || SegmentoBean(segmentoGrid.selectedItem).numeroSegmento == "02"){
+//						Alert.show("Não existe peças para esse segmento", "Alerta");
+//						return;
+//					}else if (checkInObj.numeroOs == null || checkInObj.numeroOs == ""){
+//						Alert.show("Não é permitido importar peças sem OS", "Alerta");
+//						return;
+//					}	
+					if(SegmentoBean(segmentoGrid.selectedItem).codErroDbs == '00'){
+						popupPeaComSem00E = new PopupPecaComSem00E();
+						SegmentoBean(segmentoGrid.selectedItem);
+						popupPeaComSem00E.addEventListener(CloseEvent.CLOSE,removePopUpPecas );
+						PopUpManager.addPopUp(popupPeaComSem00E,this,true);
+						PopUpManager.centerPopUp(popupPeaComSem00E)
+						popupPeaComSem00E.init(urlLogin, SegmentoBean(segmentoGrid.selectedItem).id, checkInObj.hasSendDbs, checkInObj.hasSendPecasDbs, checkInObj, _usuarioBean, SegmentoBean(segmentoGrid.selectedItem));
+						
+						
+						
+					}else{
+						Alert.show("Aguarde o retorno do DBS.","Alerta!");
+					}
+				}
+			}
+			private function enviarPecas():void{
+				
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente enviar para o DBS?", "Alerta", 3, this, alertClickHandler);				
+			}			
+			private function alertClickHandler(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {		// (event.detail==Alert.YES)		
+					checkInObj.hasSendDbs = 'S';
+					serviceController.saveOrcamento(checkInObj);
+				}else{				
+					return;
+				}			
+			}
+			private function onResultSaveOrcamento (event:ResultEvent):void{
+				if(CheckinBean(event.result).hasSendDbs == 'S'){
+					checkInObj = CheckinBean(event.result);
+					Alert.show("Peças enviadas!", "Alerta");					
+					fecharPoUp();					
+				}else{
+					Alert.show("Erro ao enviar peças para o DBS!", "Alerta");
+					checkInObj.hasSendDbs = 'N';
+				}									
+			}			
+			private function onResultSaveStatusPecas (event:ResultEvent):void{
+				if(Boolean(event.result) == false){
+					Alert.show("Erro ao verificar peças, confira a listagem de peças!", "Alerta");
+					return;
+				}		
+				
+			}	
+			
+			private function verificarPecas():void{
+				verPecas = new VerificaPecas();
+				verPecas.addEventListener(CloseEvent.CLOSE,removeVerPecas );
+				PopUpManager.addPopUp(verPecas,this,true);
+				PopUpManager.centerPopUp(verPecas)
+				verPecas.init(urlLogin, idCheckin, _usuarioBean);
+			}
+			
+			private function removeVerPecas(obj:CloseEvent):void{
+				serviceController.findAllSegmentoTelaOs(idCheckin);
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private var removerCotacao:RemoverCotacao;
+			private function removerCotacaoPopup():void{
+				removerCotacao = new RemoverCotacao();
+				removerCotacao.addEventListener(CloseEvent.CLOSE,removerCotacaoClose);
+				PopUpManager.addPopUp(removerCotacao,this,true);
+				PopUpManager.centerPopUp(removerCotacao)
+				removerCotacao.init(urlLogin, idCheckin);
+			}
+			
+			private function removerCotacaoClose(obj:CloseEvent):void{
+				serviceController.findAllSegmentoTelaOs(idCheckin);
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function buscaPecasBO():void{
+				verPecasBO = new VerificaPecasBO();
+				verPecasBO.addEventListener(CloseEvent.CLOSE, removeVerificaPecasBO );
+				PopUpManager.addPopUp(verPecasBO,this,true);
+				PopUpManager.centerPopUp(verPecasBO)
+				verPecasBO.init(urlLogin, idCheckin);
+			}
+			
+			private function removeVerificaPecasBO(obj: CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function verificarPendenciasDePecas():void{
+				serviceController.getUrlReport();
+				serviceController.verificarPendenciasDePecas();		
+			}
+			
+			private function onResultVerificarPendenciasDePecas(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					gerarRelatorio();
+				}else{
+					Alert.show("Não há peças pendentes!", "Alerta");
+				}
+			}
+			
+			private function gerarRelatorio():void{
+				var uv:URLVariables = new URLVariables();
+				uv.idCheckin = idCheckin;
+				
+				var url:URLRequest = new URLRequest(urlReport+"/PendenciasPecas");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}			
+			
+			protected function horasSegmento_changeHandler(event:Event):void
+			{
+				
+				if(horasSegmento.text.length > 3 && horasSegmento.text.substr(horasSegmento.text.length - 1, horasSegmento.text.length - 1) != ":"){
+					var array:Array = horasSegmento.text.split(":");
+					if(array.length == 1 ){
+						horasSegmento.text = horasSegmento.text.substr(0, horasSegmento.text.length - 1);
+						if(horasSegmento.text.length > 3){
+							Alert.show("Hora invalida!", "Alerta");
+							horasSegmento.text = "";
+							return;						
+						}
+					}
+				}
+				if(horasSegmento.text.length ==  1 && horasSegmento.text == ":"){
+					horasSegmento.text = '';
+				}
+				if(horasSegmento.text.substr(horasSegmento.text.length - 1, horasSegmento.text.length - 1) == ":"){
+					if(horasSegmento.text.length > 5){
+						horasSegmento.text = horasSegmento.text.substr(0, horasSegmento.text.length - 1);
+					}
+				}
+				if(horasSegmento.text.length >= 5){
+					var array:Array = horasSegmento.text.split(":");	
+					var aux:String = array[1].toString();
+					var temp:Number =  Number(aux.charAt(0));
+					var horasAux:String = array[0].toString();
+					
+					if(temp >=6 && array[1] > 59 || aux.length > 2){
+						Alert.show("Não é possível incluir minutos maior que 59!", "Alerta");
+						horasSegmento.text = array[0]+":";						
+					}			
+					
+					if(horasAux.length > 3){
+						Alert.show("Não é possível incluir hora maior que 999!", "Alerta");
+						horasSegmento.text = "";	
+					}if(horasAux.length == 3){
+						if(horasAux.charAt(0) == "0"){
+							Alert.show("Hora invalida!", "Alerta");
+							horasSegmento.text = "";
+							return;
+						}
+					}					
+				}if(horasSegmento.text.length > 6){
+					Alert.show("Hora invalida!", "Alerta");
+					horasSegmento.text = "";	
+				}
+			}			
+//			protected function jobCodeCbx_changeHandler(event:ListEvent):void
+//			{
+//				if(cptcdText.text.length > 0){
+//					serviceController.findHoras(prefixo, JobCodeBean(jobCodeCbx.selectedItem).id, cptcdText.text.split(" - ")[0]);
+//				}
+//			}
+			private function onResultFindHoras(event:ResultEvent):void{
+				horasSegmento.text = "";
+				if(event.result != null){
+					horasSegmento.text = String(event.result);
+					horasSegmento.enabled = true;
+				}else{
+					horasSegmento.enabled = false;
+				}
+			}
+			
+			private function onResultRemoverSegmentoDBS (event:ResultEvent):void{
+				//if(String(event.result) !=  ""){
+					Alert.show(String(event.result), "Alerta");
+					return;
+				//}
+				Alert.show("Rotina de remover segmento no DBS executada com sucesso!", "Alerta");
+				serviceController.findAllSegmentoTelaOs(idCheckin);
+			}		
+
+			protected function criarOs_clickHandler(event:MouseEvent):void
+			{		
+				
+				if(segmentoGrid.dataProvider == null || ArrayCollection(segmentoGrid.dataProvider).length == 0){
+					Alert.show("Não é possível criar OS sem adicionar segmento","Alerta!");
+					return;
+				}else{
+				gestaoEquipamentosBean.segmentoList = ArrayCollection(segmentoGrid.dataProvider);				
+				serviceController.newOsEstimada(gestaoEquipamentosBean); // Tela de segmento
+				
+				}
+				
+			}
+			
+			private function onResultNewOsEstimada(event:ResultEvent):void{
+				gestaoEquipamentosBean = GestaoEquipamentosBean(event.result);
+				if(gestaoEquipamentosBean.msg != ''){
+					Alert.show(gestaoEquipamentosBean.msg, "Alerta");
+					gestaoEquipamentosBean.msg = '';
+					this.close();
+					return;
+				}
+				this.close();
+				Alert.show("Os estimada criada com sucesso!", "Alerta");
+			}
+
+
+			protected function visualizarPedido_clickHandler(event:MouseEvent):void
+			{
+				if(segmentoGrid.dataProvider == null || ArrayCollection(segmentoGrid.dataProvider).length == 0){
+					Alert.show("Não há segmento para ser visualizado!");
+				}else{
+					var popUpVerificar:PopUpVerificarPedido = new PopUpVerificarPedido();
+					popUpVerificar.addEventListener(CloseEvent.CLOSE, removePopUpVerificarPedido);
+					PopUpManager.addPopUp(popUpVerificar, this, true);
+					PopUpManager.centerPopUp(popUpVerificar);
+					popUpVerificar.init(idCheckin);
+				}
+			}
+			private function removePopUpVerificarPedido(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<!--mx:method name="findAllJobCode" result="onResultFindAllJobCode(event);ProgressBarHelper.removeProgressBar()"/-->
+		<mx:method name="findAllSegmentoTelaOs" result="onResultFindAllSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="saveOrcamento" result="onResultSaveOrcamento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="saveStatusPecas" result="onResultSaveStatusPecas(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findAllJobControl" result="onResultFindAllJobControl(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findHoras" result="onResultFindHoras(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="inserirSegmento" result="onResultInserirSegmento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerSegmentoDBS" result="onResultRemoverSegmentoDBS(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificarPendenciasDePecas" result="onResultVerificarPendenciasDePecas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerSegmentoComCodErro" result="onResultRemoverSegmentoComCodErro(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="validarNumSerie" result="onValidarNumSerie(event)"/-->
+		<mx:method name="newOsEstimada" result="onResultNewOsEstimada(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="editJobControlSegmento" result="onResultEditarJobControl(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="SegmentoCanvas" backgroundColor="white">
+		<mx:HBox x="0" y="270" width="100%" height="100%">
+			<mx:DataGrid width="100%" id="segmentoGrid" height="100%" doubleClickEnabled="true" doubleClick="doubleClickPecas()"  >
+				<mx:columns>
+					<mx:DataGridColumn headerText="Segmento" dataField="numeroSegmento" />
+					<mx:DataGridColumn headerText="Job&#13;Control" dataField="jbctStr" width="55"/>
+					<mx:DataGridColumn headerText="Job Code" dataField="jbcdStr"/>
+					<mx:DataGridColumn headerText="Componente&#13;Code" dataField="cptcdStr"/>
+					<mx:DataGridColumn headerText="Horas" dataField="horas"/>
+					<mx:DataGridColumn headerText="Qtd.&#13;Comp." dataField="qtdComp"/>
+					<mx:DataGridColumn headerText="Data&#13;Liberação&#13;Segmento" dataField="dataLiberacaoPecas"/>
+					<mx:DataGridColumn headerText="Data&#13;Término&#13;Serviço" dataField="dataTerminoServico"/>
+					<mx:DataGridColumn headerText="Número&#13;Documento" dataField="numeroDoc"/>
+					<!--mx:DataGridColumn headerText="Pedido&#13;Colocado" dataField="pedido"/-->
+					<mx:DataGridColumn headerText="Mecânico&#13;Responsável&#13;Peças" dataField="nomeFuncionarioPecas"/>
+					<mx:DataGridColumn headerText="Msg. DBS" dataField="msgDbs" width="300" >
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center" backgroundColor="{(data.codErroDbs == '00')?0x99FF99:0x99FF6347}">
+									<mx:Label  text="{data.msgDbs}"  />
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+					<!--mx:DataGridColumn headerText="Operações" dataField="operacao">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/operacao.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('OPERACAO', true)) }" />
+								</mx:VBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn-->
+					<mx:DataGridColumn headerText="Excluir&#13;Editar" id="columnExcluir">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:HBox verticalGap="2" horizontalAlign="center">
+									
+									<mx:Image source="img/remover.png" width="15"  id="excluirSegmento" buttonMode="true" height="15"  click="{dispatchEvent(new Event('REMOVERSEGMENTO', true)) }" toolTip="Excluir Segmento!" />
+									<mx:Image source="img/edit.png" width="15"  id="editarSegmento" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EDITSEGMENTO', true)) }" toolTip="Editar segmento!"/>
+									<mx:Image source="img/editJobControl.png" width="15"  id="editarJobControl" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EDITJOBCONTROL', true)) }" toolTip="Editar Job Control!"/>
+								</mx:HBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn>				  
+					
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:HBox>
+		
+		<mx:HBox width="100%" horizontalAlign="center" height="211">		
+			<mx:Form width="445" >
+				<mx:FormItem label="N. Segmento:" width="273" height="25">
+					<mx:TextInput x="350" y="50" id="segmentoText" width="40" maxChars="7"  restrict="[0-9]"/>
+					</mx:FormItem>
+				<mx:FormItem label="Job Control:" width="273" height="25">
+					<mx:ComboBox width="112" x="258" enabled="true" y="113" prompt="Selecione"  id="jobControlCbx" labelField="descricao" selectedIndex="-1"></mx:ComboBox>
+					</mx:FormItem>
+				<mx:FormItem label="Descrição Control:" width="288" includeInLayout="false" visible="false">
+					<mx:TextArea  enabled="true"   id="descricaoJobControl" width="153"/>
+				</mx:FormItem>
+				<!--mx:FormItem label="Job Code:" height="25">
+					<mx:ComboBox id="jobCodeCbx" labelField="label" prompt="Selecione" change="jobCodeCbx_changeHandler(event)"></mx:ComboBox>
+				</mx:FormItem-->
+				<mx:FormItem label="Job.Code:" width="370" borderStyle="solid" cornerRadius="5" borderColor="#FFCC33">			
+					<mx:TextInput width="228" id="jobcdText" enabled="false" maxChars="255"/>
+					<mx:Button label="Pesquisar" height="20" click="popupJbcd()"/>
+				</mx:FormItem>
+			</mx:Form>
+		<mx:Form width="445" height="149">
+			<mx:FormItem label="Comp.Code:" width="370" borderStyle="solid" cornerRadius="5" borderColor="#FFCC33">			
+				<mx:TextInput width="228" id="cptcdText" enabled="false" maxChars="255"/>
+				<mx:Button label="Pesquisar" height="20" click="popupCptcd()"/>
+			</mx:FormItem>
+			<mx:FormItem label="H. Segmento:" width="273" height="25">
+				<control:DecimalInput editable="true"  id="horasSegmento" width="41" maxChars="6" enabled="false"  precision="2" currencyFormat="us" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Qtd. Comp&#xa;:" width="273" height="25">
+				<mx:TextInput width="40" restrict="[0-9]" maxChars="5" id="qtdCompText"/>
+			</mx:FormItem>
+			</mx:Form>
+			</mx:HBox>
+		
+		
+		<!--mx:HBox x="0" y="165" width="100%">
+			
+			<mx:Text text="N. Segmento"/>	
+			<mx:TextInput x="350" y="50" id="segmentoText" width="40" maxChars="7"  restrict="[0-9]"/>
+			<mx:Text text="Job Control"/>	
+			<mx:ComboBox width="112" x="258" enabled="true" y="113" prompt="Selecione"  id="jobControlCbx" labelField="descricao" selectedIndex="-1"></mx:ComboBox>
+			<mx:Text text="Job Code"/>
+			<mx:ComboBox id="jobCodeCbx" labelField="label" prompt="Selecione" change="jobCodeCbx_changeHandler(event)"></mx:ComboBox>
+			<mx:Text x="287" y="51" text="Comp.Code"/>
+			<mx:TextInput x="350" y="50" enabled="false" id="cptcdText"/>
+			<mx:Button label="Pesquisar" click="popupCptcd()"/>
+			<mx:Text text="H. Segmento"/>
+			<control:DecimalInput editable="true"  id="horasSegmento" width="41" maxChars="6" enabled="false"  precision="2" currencyFormat="us" useThousandsSeparator="true"/>
+			<mx:Text text="Qtd. Comp&#xa;"/>
+			<mx:TextInput width="40" restrict="[0-9]" maxChars="5" id="qtdCompText"/>
+			
+		</mx:HBox-->
+		<mx:HBox x="0" y="215" width="100%" horizontalAlign="center">
+			<!--mx:TextInput id="horasSegmento" width="48" restrict="0-9 :" change="horasSegmento_changeHandler(event)"/-->
+			<!-- Chama o popUp -->
+			<mx:Button label="Adicionar Segmento"  enabled="true" id="adicionarSegmento" click="adicionarJobcdGrid()"/>
+			<mx:Button label="Visualizar Pedido" id="visualizarPedido" enabled="true" click="visualizarPedido_clickHandler(event)"/>
+			</mx:HBox>
+		
+		<mx:HBox x="0" y="239" width="100%" horizontalAlign="center" id="hBoxButtonsSegmento">
+			<mx:Button label="Salvar Segmentos DBS" id="salvar" click="sendPecasNewSegmento()"/>
+			<mx:Button label="Enviar Peças para o DBS" click="enviarPecas()" id="sendPecasDbs"/>
+			<mx:Button label="Verificar Peças" id="verificaPecas" enabled="true" click="verificarPecas()" />
+			<mx:Button label="Verificar Pendências de Peças" id="pendenciasDePecas" enabled="true" click="verificarPendenciasDePecas()" />			
+			<mx:Button label="Remover Cotação" id="removerCotacaoBtn" enabled="true" click="removerCotacaoPopup()" />
+			<!--mx:Button label="Verificar Peças BO" id="pecasBO" enabled="true" click="buscaPecasBO()" visible="false" /-->		
+			<mx:Button x="382" y="312" label="Criar OS" id="criarOs" enabled="true"  click="criarOs_clickHandler(event)"/>
+		</mx:HBox>
+	</mx:Canvas>
+</util:ModuleTitleWindow>

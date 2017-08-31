@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="362">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var checkin:CheckinBean;
+			
+			public function init(urlLogin:String, checkin:CheckinBean, usuarioBean:UsuarioBean):void{
+				if(usuarioBean.siglaPerfil == "SUPERF"){
+					salvarObsOsBtn.visible = false;
+				}
+				this.urlLogin = urlLogin;
+				this.checkin = checkin;
+				var numeroOS:String;
+				//obsOSTxt.text = checkin.obsProposta;
+				serviceController.findObsOs(checkin.id);
+				//obsJobControlTxt.text = this.checkin.obsJobControl;
+				if(checkin.numeroOs != null){
+					numeroOS = checkin.numeroOs;
+				}else{
+					numeroOS = "";
+				}
+				this.title = "OBSERVAÇÃO DA OS: " + numeroOS;
+				serviceController.findAllSegmentoJobControl(checkin.id);
+			}
+			private function saveObsOS():void{
+				if(obsOSTxt.text != "" && obsJobControlTxt.text != ""){
+					this.checkin.obsJobControl = obsJobControlTxt.text;
+					serviceController.saveObsOS(checkin, obsOSTxt.text.toUpperCase(), obsJobControlTxt.text, SegmentoBean(jbctCbx.selectedItem).jbctStr);
+				}else{
+					Alert.show("O campo de observação e observação da sessão são obrigatórios.", "Alerta!");
+				}
+			}
+			private function onResultSaveObsOS(event:ResultEvent):void{
+				if(event.result != false){
+					Alert.show("Operação realizada com sucesso.", "Alerta!");	
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação.","Alerta!");
+				}
+			}
+			private function onResultFindObsOs(event:ResultEvent):void{
+				obsOSTxt.text = String(event.result);				
+			}
+			private function onResultFindAllSegmentoJobControl(event:ResultEvent):void{
+				jbctCbx.dataProvider = ArrayCollection(event.result);				
+			}
+
+			
+
+			protected function jbctCbx_changeHandler(event:ListEvent):void
+			{
+				obsJobControlTxt.text = SegmentoBean(jbctCbx.selectedItem).descricaojobControl;
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="saveObsOS" result="onResultSaveObsOS(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findObsOs" result="onResultFindObsOs(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllSegmentoJobControl" result="onResultFindAllSegmentoJobControl(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	<mx:Label text="OBS. Sessão" x="26" y="82"/>
+	<mx:Label text="Sessão" x="26" y="43"/>
+	<mx:ComboBox labelField="jbctStr" prompt="Selecine" id="jbctCbx" x="110" y="41" change="jbctCbx_changeHandler(event)"/>
+	<mx:TextInput id="obsJobControlTxt"  x="110" y="80" width="242" maxChars="100"/>
+	<mx:TextArea id="obsOSTxt"  width="324" height="161" x="28" y="110"/>
+	<mx:Button id="salvarObsOsBtn" x="159" y="279" label="Salvar" click="saveObsOS()" />	
+	
+</util:ModuleTitleWindow>

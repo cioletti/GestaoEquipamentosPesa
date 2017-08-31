@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="4.Condições Prest.Serviços" pageWidth="555" pageHeight="802" whenNoDataType="AllSectionsNoDetail" columnWidth="555" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.100000000000005"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String">
+		<defaultValueExpression><![CDATA["C:\\projetos\\web\\projetos\\marcosa_22_02_2012\\GestaoEquipamentos\\GestaoEquipamentos\\WebContent\\WEB-INF\\proposta\\"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="TOTAL_MAO_DE_OBRA" class="java.math.BigDecimal"/>
+	<parameter name="TOTAL_PECAS" class="java.math.BigDecimal"/>
+	<parameter name="TOTAL_SERVICO_TERCEIROS" class="java.math.BigDecimal"/>
+	<parameter name="TOTAL_MAT_USU_TEC" class="java.math.BigDecimal"/>
+	<parameter name="TOTAL_ORCAMENTO" class="java.math.BigDecimal"/>
+	<parameter name="FILIAL" class="java.lang.String"/>
+	<parameter name="EXEC_SERVICO" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="698">
+			<staticText>
+				<reportElement x="3" y="50" width="215" height="20"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[ Prazo estimado para execução do Serviço: ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="3" y="6" width="552" height="22" forecolor="#000000" backcolor="#E8E8E8"/>
+				<box>
+					<topPen lineWidth="1.0" lineColor="#999999"/>
+					<bottomPen lineWidth="1.0" lineColor="#999999"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Times New Roman" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[III- Da Execução do Serviço]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="3" y="73" width="535" height="283"/>
+				<textElement textAlignment="Justified">
+					<font size="9"/>
+				</textElement>
+				<text><![CDATA[1- Nossos serviços são realizados com ferramental específico e mão de obra especializada de nossa livre escolha, de
+forma a atender aos parâmetros estabelecidos nos manuais técnicos do equipamento elaborado pelo fabricante.
+2- O(s) serviço(s) a ser(em) executado(s) tem por base a descrição de serviço em anexo que faz parte integrante e
+indissociável do presente instrumento.
+3- O prazo de execução é o estimado no item III, alínea a, contado do aceite desta proposta, podendo ser prorrogado ou suspenso a critério da Prestadora, quando da ocorrência de algum dos seguintes eventos:
+a) Demora ou ausência de aprovação pelo contratante para aquisição de peças junto ao fabricante e/ou da entrega das mesmas quando por ele adquiridas de terceiros.
+b) Indisponibilidade de peças.
+c) Falha ou não execução de serviços de terceiros.
+d) Motivo de caso fortuito ou força maior que impossibilite a execução do(s) serviço(s).
+4- Na hipótese de suspensão ou cancelamento do(s) serviço(s) ocasionado pelo contratante serão faturados e cobrados o valor da mão-de-obra até então despendida, peças serviços de terceiros e material de uso técnico por ventura utilizados.
+5-Ultrapassados 30 (trinta) dias úteis da não aprovação do orçamento no prazo de validade da proposta, da suspensão dos serviços na forma do item 3.3.4., alínea a, ou não retirada do(s) equipamento(s) já reparados, implicará no acréscimo de taxa de permanência mensal correspondente a 2% (dois por cento) sobre o valor declarado do bem constante na nota fiscal de remessa para o conserto, com cobrança calculada proporcionalmente aos dias de permanência nas instalações da Marcosa, sendo o pagamento da referida taxa condição essencial para retirada do(s) mesmo(s).    ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="387" width="555" height="30"/>
+				<textElement textAlignment="Justified">
+					<font size="9"/>
+				</textElement>
+				<text><![CDATA[1- As condições de garantia constam em termo padrão que acompanhará a(s) nota(s) fiscal(is) correspondentes à
+prestação de serviços e de venda de peças, se houver.
+]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="3" y="356" width="552" height="22" forecolor="#000000" backcolor="#E8E8E8"/>
+				<box>
+					<topPen lineWidth="1.0" lineColor="#999999"/>
+					<bottomPen lineWidth="1.0" lineColor="#999999"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Times New Roman" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[IV- Da Garantia]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="3" y="641" width="242" height="43"/>
+				<textElement/>
+				<text><![CDATA[____________________________________
+  Carimbo da empresa/ Assinatura do Cliente]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="4" y="596" width="139" height="20"/>
+				<textElement/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{FILIAL}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="-1" y="426" width="555" height="22" forecolor="#000000" backcolor="#E8E8E8"/>
+				<box>
+					<topPen lineWidth="1.0" lineColor="#999999"/>
+					<bottomPen lineWidth="1.0" lineColor="#999999"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Times New Roman" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[V- Do Aceite do Cliente ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="462" width="555" height="58"/>
+				<textElement textAlignment="Justified">
+					<font size="9"/>
+				</textElement>
+				<text><![CDATA[Pelo aceite da presente proposta o cliente acima identificado declara para todos os fins ter pleno entendimento das condições da prestação do(s) serviço(s), concordando com as mesmas sem ressalvas de qualquer natureza, autorizando a prestadora neste ato a executar todo e qualquer serviço necessário a plena reparação da(s) falha(s), fazendo parte integrante do mesmo eventuais orçamentos complementares.]]></text>
+			</staticText>
+			<textField pattern="dd MMMMM yyyy">
+				<reportElement x="143" y="596" width="100" height="20"/>
+				<textElement/>
+				<textFieldExpression class="java.util.Date"><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="218" y="50" width="100" height="20"/>
+				<textElement/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{EXEC_SERVICO}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+</jasperReport>

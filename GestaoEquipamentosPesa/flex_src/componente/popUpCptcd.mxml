@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Pesquisar Componente Code" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ComponenteCodeBean;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var cptcd:String;
+			public var cptcdCode:String;
+			public var cptcdDescricao:String;
+			public function init(urlLogin:String):void{
+				pesquisaComp.addEventListener(KeyboardEvent.KEY_DOWN,keyPressed);
+				this.urlLogin = urlLogin;
+			}	
+			
+			private function keyPressed(evt:KeyboardEvent):void{				
+				if(evt.keyCode == 13){
+					findAllCompCode();				
+				}			
+			}
+			
+			private function findAllCompCode():void{
+				if (pesquisaComp.length == 0){
+					Alert.show("O campo descrição é obrigatório!","Alerta");
+					return;
+				}
+				
+				serviceController.findAllCompCode(pesquisaComp.text);
+			}
+			
+			private function onResultFindAllCompCode(event:ResultEvent):void{
+				cptcdGrid.dataProvider = event.result;
+			}
+			
+			private function doubleClickCptcd():void{
+				if(cptcdGrid.selectedItem != null){
+					this.cptcd = ComponenteCodeBean(cptcdGrid.selectedItem).id;					
+					this.cptcdCode = ComponenteCodeBean(cptcdGrid.selectedItem).id;
+					this.cptcdDescricao = ComponenteCodeBean(cptcdGrid.selectedItem).label;
+					this.close();
+				}
+			}			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllCompCode" result="onResultFindAllCompCode(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>	
+	
+	<mx:DataGrid x="0" y="117" width="372" id="cptcdGrid" height="100%" doubleClickEnabled="true" doubleClick="doubleClickCptcd()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Codigo" dataField="label"/>			
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:TextInput x="73" y="48" id="pesquisaComp"/>
+	<mx:Text x="10" y="50" text="Descrição"/>
+	<mx:Button x="258" y="50" label="Pesquisar" click="findAllCompCode()"/>		
+</util:ModuleTitleWindow>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" title="Tipo Inspeção" layout="absolute" width="458" height="180">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.ClienteBean;
+			import bean.ContatoBean;
+			
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var chekinObj:CheckinBean;
+			private var chekoutObj:CheckinBean;
+			private var contatoBean:ContatoBean = new ContatoBean();
+			public function init(urlLogin:String, chekinObj:CheckinBean):void{
+				this.urlLogin = urlLogin;
+				this.chekinObj = chekinObj;
+				serviceController.verificarSePossuiCheckOut(chekinObj.id);
+				serviceController.findContato(chekinObj.idOsPalm);
+			}
+			private function onResultVerificarSePossuiCheckOut(event:ResultEvent):void{
+				if(event.result != null){
+					chekoutObj = CheckinBean(event.result);
+					gridTipoInspecao.dataProvider = checkOutColl;
+				}else{
+					gridTipoInspecao.dataProvider = checkInColl;
+				}
+			}
+			private function onResultSaveOrUpdateContato(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Contato salvo com sucesso!","Alerta!");
+				}else{
+					Alert.show("Erro ao salvar o contato!","Alerta");
+				}
+			}
+			private function onResultfindContato(event:ResultEvent):void{
+				contatoBean = ContatoBean(event.result);
+				contatoText.text = contatoBean.contato;
+				telefoneText.text = contatoBean.telefone;
+			}
+			private function salvarContato():void{
+				if(contatoText.text != "" && telefoneText.text != ""){
+				serviceController.saveOrUpdateContato(chekinObj.idOsPalm, contatoText.text, telefoneText.text);						
+				}else{
+					Alert.show("Por favor preencha os campos!","Alerta!");
+				}
+			}
+			
+			private function doubleClickGrid():void{
+				if(gridTipoInspecao.selectedItem != null){
+					if(gridTipoInspecao.selectedIndex == -1){
+						return;
+					}
+					var inspecaoGestaoEquipTree:InspecaoGestaoEquipamentosTree = new InspecaoGestaoEquipamentosTree();
+					inspecaoGestaoEquipTree.addEventListener(CloseEvent.CLOSE, removePopUpInspecaoTree);
+					PopUpManager.addPopUp(inspecaoGestaoEquipTree,this,true);
+					PopUpManager.centerPopUp(inspecaoGestaoEquipTree)
+					if(gridTipoInspecao.selectedItem.valor == 1){	
+						inspecaoGestaoEquipTree.init(urlLogin, chekinObj, true);
+					}else{
+						inspecaoGestaoEquipTree.init(urlLogin, chekoutObj, false);
+					}
+					this.close();
+				}
+			}
+			private function removePopUpInspecaoTree(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="checkOutColl">
+		
+		<mx:Object label="Check In" valor="1"/>
+		<mx:Object label="Check Out" valor="2"/>
+		
+	</mx:ArrayCollection>  
+	<mx:ArrayCollection id="checkInColl">
+		
+		<mx:Object label="Check In" valor="1"/>
+		
+	</mx:ArrayCollection>  
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="verificarSePossuiCheckOut" result="onResultVerificarSePossuiCheckOut(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findContato" result="onResultfindContato(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdateContato" result="onResultSaveOrUpdateContato(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:DataGrid x="0" y="0" id="gridTipoInspecao" width="100%" height="70" doubleClickEnabled="true" doubleClick="doubleClickGrid()">
+		<mx:columns>
+			<mx:DataGridColumn  headerText="Tipo Inspeção" dataField="label"/>
+		</mx:columns>
+	</mx:DataGrid>
+
+	<mx:TextInput  id="contatoText" x="97" y="84" width="97"/>
+	<mx:TextInput id="telefoneText" x="273" y="84" width="97"/>
+	<mx:Label x="40" y="84" text="Contato" height="19"/>
+	<mx:Label x="211" y="85" text="Telefone"/>
+	<mx:Button x="184" y="114" label="Salvar" click="salvarContato()"/>
+	
+</util:ModuleTitleWindow>

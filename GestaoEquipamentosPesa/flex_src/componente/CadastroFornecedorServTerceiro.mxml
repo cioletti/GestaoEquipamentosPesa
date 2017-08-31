@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*" xmlns:controls="fs.controls.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.FornecedorServicoTerceirosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var myValidators: Array;
+			private var fornecedorServTerceiroBean : FornecedorServicoTerceirosBean = new FornecedorServicoTerceirosBean();
+			private var urlLogin:String;
+			
+			public function init(urlLogin:String): void{
+				this.urlLogin = urlLogin;
+				myValidators = new Array();
+				myValidators.push(campoDescricao);
+				myValidators.push(campoEmail);
+				myValidators.push(campoEndereco);
+				myValidators.push(campoDescricao);
+				myValidators.push(campoCnpj);
+				myValidators.push(campoCodigo);
+				this.telefoneText.inputFormat = FormattedInput.INPUT_FORMAT_FONE_DDD;
+				serviceController.findAllFornecedorServTerceiro();
+				fornecedorGrid.addEventListener("EXCLUIFORNECEDOR", removerFornecedor);
+			}
+			
+			private function onResultFindAllFornecedorServTerceiro(event:ResultEvent): void{
+				fornecedorGrid.dataProvider = event.result;
+			}	
+			private function onResultsaveOrUpdateFornecedorServTerceiros(event:ResultEvent): void{
+					if(event.result != null){
+						fornecedorServTerceiroBean = FornecedorServicoTerceirosBean(event.result);
+						Alert.show("Transação realizada com sucesso.");
+						serviceController.findAllFornecedorServTerceiro();
+					}else{
+						Alert.show("Ocorreu um erro ao salvar o Fornecedor!");
+					}
+				}
+								
+			private function novo(): void{
+				fornecedorServTerceiroBean = new FornecedorServicoTerceirosBean();
+				descricaoText.text = "";
+				emailText.text = "";
+				enderecoText.text = "";
+				telefoneText.text = "";
+				cnpjText.text = "";
+				codigoText.text = "";
+				
+			}
+			
+			private function salvarFornecedor(): void{
+				var validatorErrorArray: Array = Validator.validateAll(myValidators);;
+				var isValidForm: Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					fornecedorServTerceiroBean.descricao = descricaoText.text;
+					fornecedorServTerceiroBean.endereco = enderecoText.text;
+					fornecedorServTerceiroBean.telefone = telefoneText.text;					
+					fornecedorServTerceiroBean.email = emailText.text;		
+					fornecedorServTerceiroBean.cnpj = cnpjText.text;
+					fornecedorServTerceiroBean.codigo = codigoText.text;
+					serviceController.saveOrUpdateFornecedorServTerceiros(fornecedorServTerceiroBean);
+				} else {
+					var err: ValidationResultEvent;
+					var errorMessageArray: Array = [];
+					for each (err in validatorErrorArray) {
+						var errField: String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Formulário Inválido", Alert.OK);
+				}
+			}
+			
+			private function removerFornecedor(ev: Event): void{
+				var forn:FornecedorServicoTerceirosBean = FornecedorServicoTerceirosBean(fornecedorGrid.selectedItem);
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+			}	
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					fornecedorServTerceiroBean = FornecedorServicoTerceirosBean(fornecedorGrid.selectedItem);
+					serviceController.removerFornecedorServTerceiro(fornecedorServTerceiroBean);
+				}
+			}
+			
+			private function onResultRemoverFornecedorServTerceiro(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					Alert.show("Fornecedor excluído com sucesso.");
+					novo();
+					serviceController.findAllFornecedorServTerceiro();
+					
+				}else{
+					Alert.show("Ocorreu um erro ao excluir o Segmento!");
+				}
+			}
+			
+			
+			private function gridDoubleClick(): void{
+				if(fornecedorGrid.selectedItem != null){
+					if(fornecedorGrid.selectedIndex != -1) {
+						fornecedorServTerceiroBean = FornecedorServicoTerceirosBean(fornecedorGrid.selectedItem);
+						descricaoText.text = fornecedorServTerceiroBean.descricao;
+						telefoneText.text = fornecedorServTerceiroBean.telefone;
+						enderecoText.text = fornecedorServTerceiroBean.endereco;
+						emailText.text = fornecedorServTerceiroBean.email;
+						cnpjText.text = fornecedorServTerceiroBean.cnpj;
+						codigoText.text = fornecedorServTerceiroBean.codigo; 
+					}
+				}
+			}
+			
+		]]>  
+	</mx:Script>
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo é obrigatório!" required="true" source="{descricaoText}" property="text" />
+	<mx:StringValidator id="campoTelefone" requiredFieldError="Este campo é obrigatório!" required="true" source="{telefoneText}" property="text" />
+	<mx:StringValidator id="campoEndereco" requiredFieldError="Este campo é obrigatório!" required="true" source="{enderecoText}" property="text" />
+	<mx:StringValidator id="campoCnpj" requiredFieldError="Este campo é obrigatório!" required="true" source="{cnpjText}" property="text" />
+	<mx:StringValidator id="campoCodigo" requiredFieldError="Este campo é obrigatório!" required="true" source="{codigoText}" property="text" />
+	<mx:EmailValidator id="campoEmail" requiredFieldError="Email inválido!" missingAtSignError="E-mail deve conter @" required="true" source="{emailText}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllFornecedorServTerceiro" result="onResultFindAllFornecedorServTerceiro(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="saveOrUpdateFornecedorServTerceiros" result="onResultsaveOrUpdateFornecedorServTerceiros(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerFornecedorServTerceiro" result="onResultRemoverFornecedorServTerceiro(event);ProgressBarHelper.removeProgressBar()"/>
+		
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Cadastro de Fornecdor de Serviço de Terceiro" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="62" width="100%" horizontalAlign="center">
+		<mx:VBox width="100%" horizontalAlign="center">
+			<mx:Form>
+				<mx:FormItem label="CNPJ" required="true">
+					<mx:TextInput id="cnpjText" maxChars="30"/>				
+				</mx:FormItem>
+				<mx:FormItem label="Codigo Fornecedor" required="true">
+					<mx:TextInput id="codigoText" maxChars="20"/>				
+				</mx:FormItem>
+				<mx:FormItem label="Nome Fornecedor" required="true">
+					<mx:TextInput id="descricaoText" maxChars="255"/>				
+				</mx:FormItem>
+				<mx:FormItem label="Endereço" required="true">
+					<mx:TextArea id="enderecoText" width="161" height="59" maxChars="255"/>
+				</mx:FormItem>
+				<mx:FormItem label="Telefone" required="true">
+					<controls:FormattedInput id="telefoneText" width="162" maxChars="15"/>
+				</mx:FormItem>
+				<mx:FormItem label="E-Mail" required="true">
+					<mx:TextInput id="emailText"  width="162" maxChars="255"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:HBox>
+				<mx:Button label="Salvar" click="salvarFornecedor()"/>
+				<mx:Button label="Novo" click="novo()"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:HBox x="0" y="330" width="100%" height="100%">
+		<mx:DataGrid id="fornecedorGrid" width="100%" height="100%" doubleClick="gridDoubleClick()" doubleClickEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Nome" dataField="descricao"/>
+			<mx:DataGridColumn headerText="CNPJ" dataField="cnpj"/>
+			<mx:DataGridColumn headerText="Código" dataField="codigo"/>
+			<mx:DataGridColumn headerText="Endereço" dataField="endereco"/>
+			<mx:DataGridColumn headerText="Telefone" dataField="telefone"/>
+			<mx:DataGridColumn headerText="Email" dataField="email"/>
+			<mx:DataGridColumn headerText="Excluir" dataField="excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIFORNECEDOR', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+
+	</mx:HBox>
+
+	
+</mx:Canvas>

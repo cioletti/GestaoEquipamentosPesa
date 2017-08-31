@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Solicitação de Abertura" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="782" height="320">
+<mx:Script>
+	<![CDATA[
+		import bean.GeFormularioAprovacaoOsBean;
+		import bean.UsuarioBean;
+		
+		import mx.controls.Alert;
+		import mx.core.IFlexDisplayObject;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		
+		import util.ProgressBarHelper;
+
+		private var idFormulario:Number;
+		private var urlLogin:String;
+		private var usuarioBean:UsuarioBean;
+		
+		private var codigoCliente:String;
+		private var cliente:String;
+		private var tipoSolicitacao:String;
+		private var tipoSistema:String;
+		private var filialCriacaoOS:String;
+		private var maquinaParou:String;
+		public function init(urlLogin:String, usuarioBean:UsuarioBean, codigoCliente:String, cliente:String, tipoSolicitacao:String, tipoSistema:String, filialCriacaoOS:String, maquinaParou:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.codigoCliente = codigoCliente;
+			this.cliente = cliente;
+			this.tipoSistema = tipoSistema;
+			this.tipoSolicitacao = tipoSolicitacao;
+			this.filialCriacaoOS = filialCriacaoOS;
+			this.maquinaParou = maquinaParou;
+			//if(usuarioBean.isAdm == false){
+				aprovarBtn.visible = false;
+				rejeitarBtn.visible = false;
+//				salvarBtn.visible = false;
+//			}
+		}
+		
+		public function init2(urlLogin:String, usuarioBean:UsuarioBean, beanForm:GeFormularioAprovacaoOsBean, isAdm:Boolean, tipoSistema:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.idFormulario = beanForm.id;
+			this.tipoSistema = tipoSistema;
+			this.aprovacaoOs = beanForm;
+			if(isAdm == false){
+				aprovarBtn.visible = false;
+				rejeitarBtn.visible = false;
+			}
+			if(beanForm.status == 'Rejeitado'){
+				salvarBtn.visible = true;
+			}
+			serviceController.findFormularioAprovarOsById(this.idFormulario);
+		}
+		
+		public function initAprovar(urlLogin:String, usuarioBean:UsuarioBean, beanForm:GeFormularioAprovacaoOsBean, isAdm:Boolean, tipoSistema:String, tipoSolicitacao:String):void{
+			this.urlLogin = urlLogin;
+			this.usuarioBean = usuarioBean;
+			this.idFormulario = beanForm.id;
+			this.tipoSistema = tipoSistema;
+			this.aprovacaoOs = beanForm;
+			this.tipoSolicitacao = tipoSolicitacao;
+			//if(isAdm == false){
+			aprovarBtn.visible = true;
+			rejeitarBtn.visible = true;
+			salvarBtn.visible = false;
+			//pecasBtn.visible = false;
+			//}
+			serviceController.findFormularioAprovarOsById(this.idFormulario);
+		}
+		
+		private function onResultFindFormularioAprovarOs(ev:ResultEvent):void{
+			if(ev.result != null){
+				var geAprovar:GeFormularioAprovacaoOsBean = GeFormularioAprovacaoOsBean(ev.result);
+				if(aprovacaoOs.status == 'Rejeitado'){
+					salvarBtn.visible = true;
+				}
+				this.setBean(geAprovar);
+			}
+		}
+		
+		private function setBean(aprovacaoOs:GeFormularioAprovacaoOsBean):void{
+			nomeContatoTxt.text = aprovacaoOs.nomeContato;
+			emailContatoTxt.text = aprovacaoOs.emailContato;
+			telContatoTxt.text = aprovacaoOs.telConcato;
+			
+			materialTxt.text = aprovacaoOs.material;
+			horimetroTxt.text = aprovacaoOs.horimetro;
+		
+			modeloTxt.text = aprovacaoOs.modelo;
+			serieTxt.text = aprovacaoOs.serie;
+			histDescricaoProblemaTxt.text = aprovacaoOs.obsRejeicao;
+			clienteTxt.text = aprovacaoOs.clientePesa;
+			this.codigoCliente = aprovacaoOs.codigoCliente;
+			this.cliente = aprovacaoOs.cliente;
+			this.maquinaParou = aprovacaoOs.maquinaParou
+		}
+		
+		private var aprovacaoOs:GeFormularioAprovacaoOsBean = new GeFormularioAprovacaoOsBean();
+		protected function button1_clickHandler(event:MouseEvent):void
+		{
+			
+				if(nomeContatoTxt.text == '' ||
+					emailContatoTxt.text == '' ||
+					telContatoTxt.text == '' ||
+					materialTxt.text == '' ||
+					horimetroTxt.text == '' ||
+					modeloTxt.text == '' ||
+					serieTxt.text == '' ||
+					descricaoProblemaTxt.text == '' ||
+					clienteTxt.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				serviceController.validarNumSerieAprovarOs(serieTxt.text);
+			
+		}
+		
+		private function onResultSalvarFormularioAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				Alert.show("Transação realizada com sucesso!", "Alerta");
+				this.close(null);
+			}else{
+				Alert.show("Não foi possível realizar transação!", "Alerta");
+			}
+		}
+
+		private function onResultAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+				Alert.show("Transação realizada com sucesso!", "Alerta");
+				this.close(null);
+			}else{
+				Alert.show("Não foi possível realizar transação!", "Alerta");
+			}
+		}
+
+		protected function button2_clickHandler(event:MouseEvent):void
+		{
+			this.setObjBean();
+			serviceController.aprovarOs(true, null, this.aprovacaoOs);
+		}
+
+		private var popMotivorejeicao:PopupMotivoRejecaoCriacaoOS = new PopupMotivoRejecaoCriacaoOS();
+		protected function button3_clickHandler(event:MouseEvent):void
+		{
+			
+			popMotivorejeicao.addEventListener(CloseEvent.CLOSE, removeoRejeicaoPopUp);
+			PopUpManager.addPopUp(popMotivorejeicao, this, true);
+			PopUpManager.centerPopUp(popMotivorejeicao);
+		}
+		private function removeoRejeicaoPopUp(obj:CloseEvent):void{
+			PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			if(popMotivorejeicao.motivoRejeicaoTxt.text != ''){
+				this.setObjBean();
+				serviceController.aprovarOs(false, popMotivorejeicao.motivoRejeicaoTxt.text, this.aprovacaoOs);
+			}
+		}
+		
+		
+		private var popPecasAprovarOs:PopupPecasAprovacao = new PopupPecasAprovacao();	
+		protected function salvarBtn0_clickHandler(event:MouseEvent):void
+		{
+						
+			popPecasAprovarOs.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+			PopUpManager.addPopUp(popPecasAprovarOs, this, true);
+			PopUpManager.centerPopUp(popPecasAprovarOs);
+			popPecasAprovarOs.init(aprovacaoOs.listaPecasAprovacao);	
+		}
+		private function removeoAprovarPopUp(obj:CloseEvent):void{
+			PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			aprovacaoOs.listaPecasAprovacao = popPecasAprovarOs.listaPecas;
+		}
+		
+		private function onResultValidarNumSerieAprovarOs(ev:ResultEvent):void{
+			if(Boolean(ev.result) == true){
+//				aprovacaoOs.nomeContato = nomeContatoTxt.text;
+//				aprovacaoOs.emailContato = emailContatoTxt.text;
+//				aprovacaoOs.telConcato = telContatoTxt.text;
+//				
+//				aprovacaoOs.material = materialTxt.text;
+//				aprovacaoOs.horimetro = horimetroTxt.text;
+//				
+//				aprovacaoOs.modelo = modeloTxt.text;
+//				aprovacaoOs.serie = serieTxt.text;
+//				aprovacaoOs.codigoCliente = this.codigoCliente;
+//				aprovacaoOs.cliente = this.cliente;
+//				aprovacaoOs.tipoSolicitacao = this.tipoSolicitacao;
+//				aprovacaoOs.obsRejeicao = descricaoProblemaTxt.text;
+//				aprovacaoOs.tipoSistema = this.tipoSistema;
+				this.setObjBean();
+				serviceController.salvarFormularioAprovarOs(aprovacaoOs);
+			}else{
+				Alert.show("O número de série não é válido!", "Alerta");
+			}
+		}
+		
+		private function setObjBean():void{
+			aprovacaoOs.nomeContato = nomeContatoTxt.text;
+			aprovacaoOs.emailContato = emailContatoTxt.text;
+			aprovacaoOs.telConcato = telContatoTxt.text;
+			
+			aprovacaoOs.material = materialTxt.text;
+			aprovacaoOs.horimetro = horimetroTxt.text;
+			
+			aprovacaoOs.modelo = modeloTxt.text;
+			aprovacaoOs.serie = serieTxt.text;
+			aprovacaoOs.codigoCliente = this.codigoCliente;
+			aprovacaoOs.clientePesa = clienteTxt.text;
+			aprovacaoOs.cliente = this.cliente;
+			aprovacaoOs.tipoSolicitacao = this.tipoSolicitacao;
+			if(histDescricaoProblemaTxt.text != null && histDescricaoProblemaTxt.text != ''){
+				aprovacaoOs.obsRejeicao = histDescricaoProblemaTxt.text +'\n'+ descricaoProblemaTxt.text;
+			}else{
+				aprovacaoOs.obsRejeicao = descricaoProblemaTxt.text;
+			}
+			aprovacaoOs.tipoSistema = this.tipoSistema;
+			aprovacaoOs.tipoSolicitacao = tipoSolicitacao;
+			aprovacaoOs.filialCriacaoOS = this.filialCriacaoOS;
+			aprovacaoOs.maquinaParou = this.maquinaParou;
+		}
+
+	]]>
+</mx:Script>
+
+<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+	<mx:method name="salvarFormularioAprovarOs" result="onResultSalvarFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="aprovarOs" result="onResultAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="findFormularioAprovarOsById" result="onResultFindFormularioAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	<mx:method name="validarNumSerieAprovarOs" result="onResultValidarNumSerieAprovarOs(event);ProgressBarHelper.removeProgressBar()"/>
+	
+</mx:RemoteObject>
+
+	<mx:Form x="100" y="10">
+		<mx:FormItem label="Cliente">
+			<mx:TextInput id="clienteTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Série">
+			<mx:TextInput id="serieTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Modelo">
+			<mx:TextInput id="modeloTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Nome Contato">
+			<mx:TextInput id="nomeContatoTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Tel. Contato">
+			<mx:TextInput id="telContatoTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="E-mail Contato">
+			<mx:TextInput id="emailContatoTxt"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Form x="414.25" y="10">
+		<mx:FormItem label="Material">
+			<mx:TextInput id="materialTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Horímetro">
+			<mx:TextInput id="horimetroTxt" restrict="[0-9]"/>
+		</mx:FormItem>
+		<mx:FormItem label="Descrição Problema:" height="76">
+			<mx:TextArea id="descricaoProblemaTxt"  height="59"/>
+		</mx:FormItem>
+		<mx:FormItem label="Hist. Desc. Problema" height="76">
+			<mx:TextArea id="histDescricaoProblemaTxt"  height="59" editable="false" enabled="true"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:Button x="266.25" y="262" label="Salvar" click="button1_clickHandler(event)" id="salvarBtn"/>
+	<mx:Button x="336.25" y="262" label="Aprovar"  click="button2_clickHandler(event)" id="aprovarBtn"/>
+	<mx:Button x="415.75" y="262" label="Rejeitar"  click="button3_clickHandler(event)" id="rejeitarBtn"/>
+	
+</util:ModuleTitleWindow>

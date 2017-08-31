@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.SegmentoBean;
+			
+			import mx.controls.Alert;
+			
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var usuario:UsuarioBean;
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				this.usuario = usuario;
+				this.urlLogin = urlLogin;
+			}
+			protected function button1_clickHandler(event:MouseEvent):void{
+				if(numeroOs.text != ''){
+					gridLog.dataProvider = null;
+					gridRemovida.dataProvider = null;
+					serviceController.findAllSegmento(numeroOs.text);
+					serviceController.findAllSegmentoLog(numeroOs.text);
+				}else{
+					Alert.show("Campo de OS Obrigatótio!", "Alerta");
+				}
+			}
+			
+			private function onResultFindAllFindAllSegmento(event:ResultEvent):void{
+				gridLog.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllFindAllSegmentoLog(event:ResultEvent):void{
+				gridRemovida.dataProvider = ArrayCollection(event.result);
+			}
+//			
+//			protected function segmentoCbx_changeHandler(event:ListEvent):void
+//			{
+//				serviceController.findAllPecasLog(SegmentoBean(segmentoCbx.selectedItem).idDocSegOper);
+//				serviceController.findAllPecas00E(SegmentoBean(segmentoCbx.selectedItem).idDocSegOper);
+//				serviceController.findAllPecasRemovidas(SegmentoBean(segmentoCbx.selectedItem).idDocSegOper);
+//			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllSegmento" result="onResultFindAllFindAllSegmento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllSegmentoLog" result="onResultFindAllFindAllSegmentoLog(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+		<mx:Label text="Log de Segmentos" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox horizontalAlign="center" x="0" y="96" width="100%">
+		<mx:Label  text="OS"/>
+		<mx:TextInput  id="numeroOs"/>
+		<mx:Button  label="Pesquisar" click="button1_clickHandler(event)"/>
+		
+	</mx:HBox>
+	<!--mx:HBox horizontalAlign="center" x="0" y="127" width="100%">
+		<mx:Label  text="Segmento"/>
+		<mx:ComboBox x="825.5" y="125" id="segmentoCbx" labelField="descricao" prompt="Selecione" change="segmentoCbx_changeHandler(event)"></mx:ComboBox>
+		
+	</mx:HBox-->
+	<mx:HBox horizontalAlign="center" width="100%" y="175" height="100%">
+		
+	<mx:VBox x="379.5" y="175" height="100%">
+		<mx:Label  text="Segmentos"/>
+		<mx:DataGrid  id="gridLog" height="90%">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Numero" dataField="numeroSegmento"/>
+				<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Horas" dataField="horas"/>
+				<mx:DataGridColumn headerText="Qtd" dataField="qtdComp"/>
+				<mx:DataGridColumn headerText="JobControl" dataField="jbctStr"/>
+			</mx:columns>
+		</mx:DataGrid>
+		
+	</mx:VBox>
+	
+	<mx:VBox x="819.5" y="175" height="100%">
+		
+		<mx:Label x="822.5" y="175" text="Segmentos Removidos/Atualizados"/>
+		<mx:DataGrid  id="gridRemovida" height="90%">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Numero" dataField="numeroSegmento"/>
+				<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Horas" dataField="horas"/>
+				<mx:DataGridColumn headerText="Qtd" dataField="qtdComp"/>
+				<mx:DataGridColumn headerText="JobControl" dataField="jbctStr"/>
+				<mx:DataGridColumn headerText="Funcionário &#13; Remoção" dataField="nomeFuncionarioRemocao"/>
+				<mx:DataGridColumn headerText="Funcionário &#13; Atualização" dataField="nomeFuncionarioEdicao"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	<!--mx:VBox x="1052.5" y="175" height="100%">
+		<mx:Label x="1052.5" y="175" text="Peças Enviadas DBS"/>
+		<mx:DataGrid  id="grid00E" height="90%">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Peça" dataField="partNo"/>
+				<mx:DataGridColumn headerText="Qtd" dataField="qtd"/>
+				<mx:DataGridColumn headerText="SOS" dataField="sos"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox-->
+	</mx:HBox>
+	
+</mx:Canvas>

@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Dados da Proposta" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" height="634">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.DetalhesPropostaBean;
+			import bean.SegmentoBean;
+			
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.modules.IModuleInfo;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			public var urlLogin:String = "";
+			[Bindable]
+			private var dtp:DetalhesPropostaBean;
+			private var checkinBean:CheckinBean;
+			private var myValidators:Array;
+			public var print:Boolean = false;
+
+			public function init(urlLogin:String, checkinBean:CheckinBean):void{
+				this.checkinBean = checkinBean;
+				serviceController.findDetalhesProposta(checkinBean);
+				myValidators = new Array();
+				myValidators.push(campoFormaEntregaClienteCbx);
+				myValidators.push(campoAosCuidadosTxt);
+				myValidators.push(campoTelefoneTxt);
+				myValidators.push(campoEmailTxt);
+				myValidators.push(campoObjetoProposta);
+				myValidators.push(campoMaquinaTxt);
+				myValidators.push(campoModeloTxt);
+				myValidators.push(campoSerieTxt);
+				myValidators.push(campoObservacao);
+				myValidators.push(campoCondicaoPagamento);
+				myValidators.push(campoPrazoEntregaDiasUteisTxt);
+				myValidators.push(campoValidadeProposta);
+				myValidators.push(campoAprovacaoPropostaServico);
+				myValidators.push(campoOrcamentista);
+			}
+			
+			private function popupAssociarSegmento():void{
+				var popUpAssociarSegmento:PopUpAssociarSegmentos = new PopUpAssociarSegmentos();
+				popUpAssociarSegmento.addEventListener(CloseEvent.CLOSE, removeAssociarSegmentoOSPopUp);
+				PopUpManager.addPopUp(popUpAssociarSegmento, this, true);
+				PopUpManager.centerPopUp(popUpAssociarSegmento);
+				popUpAssociarSegmento.init(urlLogin, SegmentoBean(segmentoCbx.selectedItem));
+			}
+			
+			private function removeAssociarSegmentoOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findDetalhesProposta(this.checkinBean);
+				associarSegmento.visible = false;
+			}
+			
+			private function onResultFindDetalhesProposta(ev:ResultEvent):void{
+				if(ev.result != null){
+					dtp = DetalhesPropostaBean(ev.result);
+					imprimirSubTributaria.selected = (dtp.imprimirSubTributaria == 'S')?true:false;
+					imprimirSubTributaria.selected = true;
+					fatorUrgencia.selected = (dtp.fatorUrgencia == 'S')?true:false;
+					this.fixFormaEntregaCliente(dtp.formaEntregaProposta);
+				}
+			}
+			private function onResultSaveOrUpdateDetalhesProposta(ev:ResultEvent):void{
+				if(ev.result != null){
+					dtp = DetalhesPropostaBean(ev.result);
+					if(dtp.isFindSubTributaria != 'P'){
+						print = true;
+					}else{
+						Alert.show("Aguarde o retorno do valor da substituição tributária das peças, para imprimir a proposta!", "Alerta");
+					}
+					this.close();
+					return;
+				}
+					Alert.show("Não foi possível salvar dados da Proposta!","Erro");
+			}
+			
+			private function fixFormaEntregaCliente(forma:String):void{
+				formaEntregaClienteCbx.selectedIndex = -1;
+				var fcList:ArrayCollection = ArrayCollection(formaEntregaClienteCbx.dataProvider);
+				for(var i:int=0; i < fcList.length; i++){
+					var fc:String = String(fcList.getItemAt(i).data);
+					if(fc == forma){
+						formaEntregaClienteCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+
+			protected function segmentoCbx_changeHandler(event:ListEvent):void
+			{
+				obsSegmento.editable = false;
+				nomeSegmento.editable = false;
+				
+				if(segmentoCbx.selectedIndex != -1){
+					obsSegmento.editable = true;
+					obsSegmento.text = SegmentoBean(segmentoCbx.selectedItem).observacao;
+					nomeSegmento.editable = true;
+					nomeSegmento.text = SegmentoBean(segmentoCbx.selectedItem).nomeSegmento;
+					associarSegmento.visible = true;
+				}
+			}
+
+
+			protected function obsSegmento_changeHandler(event:Event):void
+			{
+				if(segmentoCbx.selectedIndex != -1){
+					SegmentoBean(segmentoCbx.selectedItem).observacao = obsSegmento.text;
+				}
+			}
+			protected function nomeSegmento_changeHandler(event:Event):void
+			{
+				if(segmentoCbx.selectedIndex != -1){
+					SegmentoBean(segmentoCbx.selectedItem).nomeSegmento = nomeSegmento.text;
+				}
+			}
+			
+			
+			private function imprimirProposta():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					dtp.formaEntregaProposta = formaEntregaClienteCbx.selectedItem.data;
+					dtp.aosCuidados = aosCuidadosTxt.text;
+					dtp.telefone = telefoneTxt.text
+					dtp.email = emailTxt.text
+					dtp.objetoProposta = objetoProposta.text;
+					dtp.maquina = maquinaTxt.text;
+					dtp.modelo = modeloTxt.text;
+					dtp.serie = serieTxt.text;
+					dtp.observacao = observacao.text;
+					dtp.condicaoPagamento = condicaoPagamento.text;
+					dtp.prazoEntrega = Number(prazoEntregaDiasUteisTxt.text);
+					dtp.validadeProposta = validadeProposta.text;
+					dtp.aprovacaoPropostaServico = aprovacaoPropostaServico.text;
+					dtp.orcamentista = orcamentista.text;
+					dtp.imprimirSubTributaria = (imprimirSubTributaria.selected == true)?'S':'N';
+					dtp.fatorUrgencia = (fatorUrgencia.selected == true)?'S':'N';
+					
+					serviceController.saveOrUpdateDetalhesProposta(this.checkinBean.id, dtp);
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Erro", Alert.OK);
+				}
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:NumberValidator id="campoFormaEntregaClienteCbx" source="{formaEntregaClienteCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoAosCuidadosTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{aosCuidadosTxt}" property="text" />
+	<mx:StringValidator id="campoTelefoneTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{telefoneTxt}" property="text" />
+	<mx:StringValidator id="campoEmailTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{emailTxt}" property="text" />
+	<mx:StringValidator id="campoObjetoProposta" requiredFieldError="Este campo  obrigatório!" required="true" source="{objetoProposta}" property="text" />
+	<mx:StringValidator id="campoMaquinaTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{maquinaTxt}" property="text" />
+	<mx:StringValidator id="campoModeloTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{modeloTxt}" property="text" />
+	<mx:StringValidator id="campoSerieTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{serieTxt}" property="text" />
+	<mx:StringValidator id="campoObservacao" requiredFieldError="Este campo  obrigatório!" required="true" source="{observacao}" property="text" />
+	<mx:StringValidator id="campoCondicaoPagamento" requiredFieldError="Este campo  obrigatório!" required="true" source="{condicaoPagamento}" property="text" />
+	<mx:StringValidator id="campoPrazoEntregaDiasUteisTxt" requiredFieldError="Este campo  obrigatório!" required="true" source="{prazoEntregaDiasUteisTxt}" property="text" />
+	<mx:StringValidator id="campoValidadeProposta" requiredFieldError="Este campo  obrigatório!" required="true" source="{validadeProposta}" property="text" />
+	<mx:StringValidator id="campoAprovacaoPropostaServico" requiredFieldError="Este campo  obrigatório!" required="true" source="{aprovacaoPropostaServico}" property="text" />
+	<mx:StringValidator id="campoOrcamentista" requiredFieldError="Este campo  obrigatório!" required="true" source="{orcamentista}" property="text" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findDetalhesProposta" result="onResultFindDetalhesProposta(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdateDetalhesProposta" result="onResultSaveOrUpdateDetalhesProposta(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ArrayCollection id="tipoEntregaCbx">
+		<mx:Object label="E-MAIL" data="E"/>
+		<mx:Object label="EM MÃOS" data="M"/>
+		<mx:Object label="VIA FAX" data="F"/>
+	</mx:ArrayCollection>
+	<mx:Button x="308" y="524" label="Imprimir Proposta" click="imprimirProposta()"/>
+	<mx:HBox width="100%" x="0" y="0">
+		<mx:Form height="480">
+			<mx:FormItem label="Entregue ao cliente Por" required="true">
+				<mx:ComboBox dataProvider="{tipoEntregaCbx}" prompt="Selecione" id="formaEntregaClienteCbx" labelField="label"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Aos Cuidados" required="true">
+				<mx:TextInput id="aosCuidadosTxt" text="{dtp.aosCuidados}" maxChars="100"/>
+			</mx:FormItem>
+			<mx:FormItem label="Telefone" required="true">
+				<mx:TextInput id="telefoneTxt" text="{dtp.telefone}" maxChars="20"/>
+			</mx:FormItem>
+			<mx:FormItem label="E-mail" required="true">
+				<mx:TextInput id="emailTxt" text="{dtp.email}" maxChars="100"/>
+			</mx:FormItem>
+			<mx:FormItem label="Objeto da Proposta" required="true">
+				<mx:TextInput id="objetoProposta" text="{dtp.objetoProposta}" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Máquina" required="true">
+				<mx:TextInput id="maquinaTxt" text="{dtp.maquina}" maxChars="50"/>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:TextInput id="modeloTxt" text="{dtp.modelo}" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Série" required="true">
+				<mx:TextInput id="serieTxt" text="{dtp.serie}" maxChars="20"/>
+			</mx:FormItem>
+			<mx:FormItem label="Segmento">
+				<mx:HBox>
+					<mx:ComboBox id="segmentoCbx" dataProvider="{dtp.segmentoList}" prompt="Selecione" labelField="descricao" change="segmentoCbx_changeHandler(event)"></mx:ComboBox>
+					<mx:Image visible="false" width="20" height="20" id="associarSegmento" source="img/send.png" click="popupAssociarSegmento()" buttonMode="true"/>
+				</mx:HBox>
+			</mx:FormItem>
+			<mx:FormItem label="Nome Segmento"  required="true" width="100%">
+				<mx:TextInput width="100%" id="nomeSegmento" editable="false" change="nomeSegmento_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Observação Segmento" height="149" required="true" width="100%">
+				<mx:TextArea height="139" width="100%" id="obsSegmento" editable="false" change="obsSegmento_changeHandler(event)"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form>
+			<mx:FormItem label="Observações" height="155" required="true">
+				<mx:TextArea height="140" id="observacao" text="{dtp.observacao}"/>
+			</mx:FormItem>
+			<mx:FormItem label="Condições de pagamento" required="true">
+				<mx:TextInput id="condicaoPagamento" text="{dtp.condicaoPagamento}" />
+			</mx:FormItem>
+			<mx:FormItem label="Prazo entrega em dias úteis" required="true">
+				<mx:TextInput id="prazoEntregaDiasUteisTxt" text="{dtp.prazoEntrega}" restrict="[0-9]"/>
+			</mx:FormItem>
+			<mx:FormItem label="Validade da Proposta" required="true">
+				<mx:DateField id="validadeProposta" text="{((dtp.validadeProposta != null)?dtp.validadeProposta:'')}" formatString="DD/MM/YYYY"/>
+			</mx:FormItem>
+			<mx:FormItem label="Aprovação da Proposta de Serviço" height="135" required="true">
+				<mx:TextArea height="115" id="aprovacaoPropostaServico" text="{dtp.aprovacaoPropostaServico}"/>
+			</mx:FormItem>
+			<mx:FormItem label="Orçamentista" required="true">
+				<mx:TextInput id="orcamentista" editable="false" text="{dtp.orcamentista}"/>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	<mx:CheckBox x="293" y="488" id="imprimirComPecas" label="Imprimir com Peças"/>
+	<mx:CheckBox x="108" y="488" id="fatorUrgencia" label="FATOR DE URGÊNCIA" color="#FF0101" enabled="false"/>
+	<mx:CheckBox x="458" y="488" id="imprimirSubTributaria" label="APLICAR SUBSTITUIÇÃO TRIBUTÁRIA" color="#FD0101"/>
+	
+</util:ModuleTitleWindow>

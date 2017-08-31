@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="700" height="500">
+	<mx:Script>
+		<![CDATA[
+			import bean.GeDocSegOperBean;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			public var idCheckin:Number;
+			private var urlLogin:String;
+			
+			public function init(urlLogin:String, idCheckin:Number):void{							
+				this.idCheckin = idCheckin;
+				this.urlLogin = urlLogin;
+				serviceController.verificaPecas(idCheckin);
+				gridRemoverCotacao.addEventListener("REMOVERCOTACAO", removerCot);
+			}
+			public function onResultVerificaPecas(event:ResultEvent):void{
+				gridRemoverCotacao.dataProvider = event.result;
+			}
+			public function onResultRemoverCotacaoDBS(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Aguarde o retorno do DBS!", "Alerta");
+					this.close();
+				}else{
+					Alert.show("Erro ao remover documento do DBS!", "Alerta");
+					this.close();
+				}
+			}
+			
+			
+			private function removerCot(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+		
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					this.removerCotacao();
+				}
+			}
+			
+			private function removerCotacao():void{
+				if(GeDocSegOperBean(gridRemoverCotacao.selectedItem).numDoc == null || GeDocSegOperBean(gridRemoverCotacao.selectedItem).numDoc == ''){
+					Alert.show("Não é possível remover cotação sem número do documento!", "Alerta");
+					return;
+				} 
+				if(GeDocSegOperBean(gridRemoverCotacao.selectedItem).codErroDbs == null || GeDocSegOperBean(gridRemoverCotacao.selectedItem).codErroDbs == '00'){
+					serviceController.removerCotacaoDBS(GeDocSegOperBean(gridRemoverCotacao.selectedItem).id,GeDocSegOperBean(gridRemoverCotacao.selectedItem).numDoc);
+				}else{
+					Alert.show("Aguarde o retorno do DBS!", "Alerta");
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="verificaPecas" result="onResultVerificaPecas(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerCotacaoDBS" result="onResultRemoverCotacaoDBS(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:DataGrid x="0" y="0" width="100%" height="100%" id="gridRemoverCotacao">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Segmento" dataField="descSegmento"/>
+			<mx:DataGridColumn headerText="Documento" dataField="numDoc"/>
+			<mx:DataGridColumn headerText="MSG DBS" dataField="msgDbsRemocao">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center" backgroundColor="{(data.codErroDbs == '00')?0x99FF99:((data.codErroDbs == null)?0xFFFFFF:0x99FF6347)}">
+							<mx:Label height="15"  text="{data.msgDbsRemocao}" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png"  buttonMode="true" height="15"  click="{dispatchEvent(new Event('REMOVERCOTACAO', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</util:ModuleTitleWindow>

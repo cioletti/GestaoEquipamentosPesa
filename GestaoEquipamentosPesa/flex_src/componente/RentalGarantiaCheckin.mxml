@@ -1,0 +1,680 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.JobControlBean;
+			import bean.DetalhesPropostaBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.effects.AddItemAction;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			private var col1findSituacaoOS:String; // Variavel para pegar a primeira coluna da busca do combo de OS
+			private var col2findSituacaoOS:String;// Variavel para pegar a segunda coluna da busca do combo de OS
+			var conclusaoPopup:DataConclusaoPopUp = new DataConclusaoPopUp();
+			private var usuarioBean:UsuarioBean;
+			
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{ // Método que inicia ao carregar componente. (Foi chamado através de GestaoEquipamentos)
+				campoPesquisa.addEventListener(KeyboardEvent.KEY_DOWN,keyPressed);
+				this.urlLogin = urlLogin;
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text);				
+				cheGrid.addEventListener("CRIAROSESTIMADA", criarOsEstimada); // Adiciona evento (imagem) e chama o método criarOsEstimada.
+				cheGrid.addEventListener("DATAORCAMENTO", dataOrcamento); 
+				cheGrid.addEventListener("IMPRIMERELATORIO", imprimeRelatorio);
+				cheGrid.addEventListener("SERVICOSTERCEIROS", servicoTerceirosPopup);
+				cheGrid.addEventListener("REJEICAOOS", verMotivoRejeicao);
+				cheGrid.addEventListener("DATAPREVISAO", dataPrevisao); 
+				cheGrid.addEventListener("CONCLUSAO", conclusao);				
+				cheGrid.addEventListener("DESCRICAOSTATUSNEGOCIACAOCONSULTOR", descricaoStatusNegociacaoConsultor);		
+				cheGrid.addEventListener("OBS", obsOS); 
+				cheGrid.addEventListener("DATASOS", datasOS);
+				cheGrid.addEventListener("FOTO", foto);
+				cheGrid.addEventListener("ARQUIVO", arquivo);
+				cheGrid.addEventListener("EXCLUIROS", excluirOS);
+				cheGrid.addEventListener("DATAFATURAMENTO", dataFaturamento);	
+				this.usuarioBean = usuarioBean;
+//				findSituacaoOSCbx.selectedIndex = -1;
+	
+			}
+			
+			
+			private var popupDataFaturamento:PopupDataFaturamento;
+			private function dataFaturamento (ev:Event):void{	
+//				Alert.show(""+CheckinBean(cheGrid.selectedItem).dataFaturamento, "Alerta");
+//				if(CheckinBean(cheGrid.selectedItem).dataFaturamento != null ){
+//					return;
+//				}
+//				Alert.show(""+CheckinBean(cheGrid.selectedItem).dataFaturamento, "Alerta");
+				//Orçamento aprovado ou rejeitado
+				popupDataFaturamento = new PopupDataFaturamento();
+				popupDataFaturamento.addEventListener(CloseEvent.CLOSE, removerDateFatutamentoPopUp);
+				PopUpManager.addPopUp(popupDataFaturamento, this, true);
+				PopUpManager.centerPopUp(popupDataFaturamento);
+				if(CheckinBean (cheGrid.selectedItem).dataFaturamento != null){
+					popupDataFaturamento.data.text = CheckinBean (cheGrid.selectedItem).dataFaturamento;
+				}
+			}
+			
+			private function removerDateFatutamentoPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupDataFaturamento.clickButtonOk){
+					var checkin: CheckinBean = CheckinBean (cheGrid.selectedItem);
+					if (checkin.numeroOs != null && popupDataFaturamento.data.text != ''){
+						serviceController.saveDataFaturamento(checkin, popupDataFaturamento.data.text, popupDataFaturamento.tipoEncarramentoCbx.selectedItem.data);				
+					}	
+				}
+			}
+			
+			private function onResultSaveDataFaturamento(event:ResultEvent):void{
+				if(Boolean(event.result)){
+					//serviceController.findAllChekinByJobControl('');
+					serviceController.findAllChekinRentalGarantia(campoPesquisa.text);
+				}else{
+					Alert.show("Erro ao salvar data de Faturamento!", "Alerta");
+				}
+			}
+			
+			private function keyPressed(evt:KeyboardEvent):void{				
+					if(evt.keyCode == 13){
+						serviceController.findAllChekinRentalGarantia(campoPesquisa.text);
+//						if (campoPesquisa.text == ''){
+//							findSituacaoOSCbx.selectedIndex = 0;
+//						}
+					}			
+			}
+			
+			private function foto(ev:Event):void{
+				var popUpFotos:PopupFotosOS = new PopupFotosOS();
+				popUpFotos.addEventListener(CloseEvent.CLOSE, removeFotosOSPopUp);
+				PopUpManager.addPopUp(popUpFotos, this, true);
+				PopUpManager.centerPopUp(popUpFotos);
+				popUpFotos.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+			}
+			
+			private function removeFotosOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function arquivo(ev:Event):void{
+				var popUpArquivos:PopupArquivosOS= new PopupArquivosOS();
+				popUpArquivos.addEventListener(CloseEvent.CLOSE, removeArquivoOSPopUp);
+				PopUpManager.addPopUp(popUpArquivos, this, true);
+				PopUpManager.centerPopUp(popUpArquivos);
+				popUpArquivos.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+			}
+			
+			private function removeArquivoOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function excluirOS(ev:Event):void{
+				if(usuarioBean.siglaPerfil != 'ADM'){
+				Alert.show("Apenas Administrador pode excluir a OS", "Alerta!");	
+				}else{
+				var popUpExcluirOS:PopupExcluirOS = new PopupExcluirOS();
+				popUpExcluirOS.addEventListener(CloseEvent.CLOSE, removeExcluirOSPopUp);
+				PopUpManager.addPopUp(popUpExcluirOS, this, true);
+				PopUpManager.centerPopUp(popUpExcluirOS);
+				popUpExcluirOS.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+				}
+			}
+			
+			private function removeExcluirOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text);
+			}			
+			
+			private var popupStatusNegociacao:PopupStatusNegociacao;
+			private function descricaoStatusNegociacaoConsultor (ev:Event):void{	
+				//Orçamento aprovado ou rejeitado
+				popupStatusNegociacao = new PopupStatusNegociacao();
+				popupStatusNegociacao.addEventListener(CloseEvent.CLOSE, removerPopUpDescricaoStatusNegociacaoConsultor);
+					PopUpManager.addPopUp(popupStatusNegociacao, this, true);
+					PopUpManager.centerPopUp(popupStatusNegociacao);
+					popupStatusNegociacao.descricaoStatusNegociacaoTxt.text = CheckinBean (cheGrid.selectedItem).obsNegociacaoConsultor;
+					if(CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor == 'A'){
+						popupStatusNegociacao.init(CheckinBean (cheGrid.selectedItem).numeroOs, urlLogin);
+					}
+			}
+			
+			private function removerPopUpDescricaoStatusNegociacaoConsultor(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private var popUpObsOs:PopUpObsOS;	
+			private function obsOS(ev:Event):void{			
+				popUpObsOs = new PopUpObsOS();				
+				popUpObsOs.addEventListener(CloseEvent.CLOSE, removeoObsOSPopUp);
+				PopUpManager.addPopUp(popUpObsOs, this, true);
+				PopUpManager.centerPopUp(popUpObsOs);
+				popUpObsOs.init(urlLogin, CheckinBean(cheGrid.selectedItem), this.usuarioBean);					
+				
+			}
+			
+			private function removeoObsOSPopUp(obj:CloseEvent):void{
+				//serviceController.findAllChekinRental(campoPesquisa.text);
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}	
+			
+			private var popUpDatasOs:PopUpDatasOS;	
+			private function datasOS(ev:Event):void{			
+				popUpDatasOs = new PopUpDatasOS();				
+				popUpDatasOs.addEventListener(CloseEvent.CLOSE, removeDatasOSPopUp);
+				PopUpManager.addPopUp(popUpDatasOs, this, true);
+				PopUpManager.centerPopUp(popUpDatasOs);
+				popUpDatasOs.init(urlLogin, CheckinBean(cheGrid.selectedItem));					
+				
+			}
+			
+			private function removeDatasOSPopUp(obj:CloseEvent):void{				
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}			
+			
+			
+			private	var segmentoCampos:CriarSegmentoOS;
+			private function criarOsEstimada(ev: Event): void{
+				if (CheckinBean(cheGrid.selectedItem).numeroOs != "" && CheckinBean(cheGrid.selectedItem).numeroOs != null 
+					&& CheckinBean(cheGrid.selectedItem).codErroDbs == "00"){
+					segmentoCampos = new CriarSegmentoOS();
+					segmentoCampos.addEventListener(CloseEvent.CLOSE, removePopUpCriarOsSegmento);
+					PopUpManager.addPopUp(segmentoCampos,this,true);
+					PopUpManager.centerPopUp(segmentoCampos)		
+					segmentoCampos.init(urlLogin,CheckinBean(cheGrid.selectedItem).numeroOs,CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem), CheckinBean(cheGrid.selectedItem).serie.substr(0,4), usuarioBean, null);
+					
+				}else if(CheckinBean(cheGrid.selectedItem).codErroDbs != "100"){
+					var criarOs:CriarOsEstimada = new CriarOsEstimada();
+					criarOs.addEventListener(CloseEvent.CLOSE, removePopUpCriarOsEstimada);
+					PopUpManager.addPopUp(criarOs,this,true);
+					PopUpManager.centerPopUp(criarOs)					
+					criarOs.init(urlLogin, CheckinBean(cheGrid.selectedItem).numeroOs, CheckinBean(cheGrid.selectedItem).cliente, CheckinBean(cheGrid.selectedItem).serie, CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem), CheckinBean(cheGrid.selectedItem).idOsPalm, usuarioBean,false );					
+				}
+			}
+			
+			private function openPopupSegmento():void{
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text)
+			}
+			
+			private function criarOSInterna():void{
+				var criarOSInterna:CriarOSInterna = new CriarOSInterna();
+				criarOSInterna.addEventListener(CloseEvent.CLOSE, removeCriarOSInterna);
+				PopUpManager.addPopUp(criarOSInterna, this, true);
+				PopUpManager.centerPopUp(criarOSInterna);
+				criarOSInterna.init(urlLogin);
+			}
+			private function removeCriarOSInterna(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text)	
+				//findSituacaoOSCbx.selectedIndex = 0;
+			}
+			private function filtroCheckin():void{
+				
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text);
+				//if (campoPesquisa.text == ''){
+					//findSituacaoOSCbx.selectedIndex = -1;
+				//}
+			}
+			
+			private var popupData:PopupDataOrcamento;
+			private function dataOrcamento (ev:Event):void{	
+				//Orçamento aprovado ou rejeitado
+				if(CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor != 'A' && CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor != 'R'){
+					popupData = new PopupDataOrcamento();
+					popupData.addEventListener(CloseEvent.CLOSE, removerDatePopUp);
+					PopUpManager.addPopUp(popupData, this, true);
+					PopUpManager.centerPopUp(popupData);
+					popupData.init(this.usuarioBean, CheckinBean(cheGrid.selectedItem).id, this.urlLogin, CheckinBean(cheGrid.selectedItem).tipoCliente);
+					if(CheckinBean (cheGrid.selectedItem).dataOrcamento != null){
+						popupData.data.text = CheckinBean (cheGrid.selectedItem).dataOrcamento;
+					}
+				}else{
+					Alert.show("Não é mais permitido alterar a data de Orçamento!", "Alerta");
+				}
+			}
+			
+			private function removerDatePopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupData.clickButtonOk){
+					var checkin: CheckinBean = CheckinBean (cheGrid.selectedItem);
+					checkin.hasSendDataOrcamento = 'S';	
+					if (checkin.numeroOs != null){
+						serviceController.saveDataOrcamento(checkin, null, ArrayCollection(popupData.userList.dataProvider));				
+					}	
+				}
+			}
+			
+			
+			
+			private var detalhesProposta:PopupImprimirProposta;
+			private function imprimeRelatorio(ev:Event):void{
+				serviceController.verificaPendeciasPecas(CheckinBean(cheGrid.selectedItem).id);
+			}
+			private function removeDetalhesPropostaPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(detalhesProposta.print){
+					this.gerarRelatorio();
+				}
+			}
+			
+			private function removeServicosTerceirosPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private function enviarAprovacao (ev:Event):void{	
+				if(CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor != 'A' && CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor != 'R'){
+					
+				}
+				serviceController.verificarAprovacaoProposta( CheckinBean (cheGrid.selectedItem).id);	
+											
+			}
+			private var motivoRejeicaoOS:PopUpMotivoRejeicaoOS;
+			private function verMotivoRejeicao (ev:Event):void{					
+				motivoRejeicaoOS = new PopUpMotivoRejeicaoOS();
+				motivoRejeicaoOS.addEventListener(CloseEvent.CLOSE, removeMotivoRejeicaoOSPopUp);
+				PopUpManager.addPopUp(motivoRejeicaoOS, this, true);
+				PopUpManager.centerPopUp(motivoRejeicaoOS);
+				motivoRejeicaoOS.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+											
+			}
+			private function removeMotivoRejeicaoOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private	var servicoTerceiros:PopupServicoTerceiros;
+			private function servicoTerceirosPopup(ev:Event):void{
+				//if(CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor != 'A' && CheckinBean (cheGrid.selectedItem).statusNegociacaoConsultor != 'R'){
+					servicoTerceiros = new PopupServicoTerceiros();
+					servicoTerceiros.addEventListener(CloseEvent.CLOSE, removeServicoTerceirosPopUp);
+					PopUpManager.addPopUp(servicoTerceiros, this, true);
+					PopUpManager.centerPopUp(servicoTerceiros);
+					servicoTerceiros.init(urlLogin, CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem).codCliente, CheckinBean(cheGrid.selectedItem));
+				//} else {
+					//Alert.show("Não é mais permitido criar ou alterar serviços de terceiros!", "Alerta");
+				//}
+			}
+			private function removeServicoTerceirosPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				var checkin: CheckinBean = CheckinBean (cheGrid.selectedItem);
+				
+				if (checkin.numeroOs != null && servicoTerceiros.isSave == true){
+					serviceController.saveDataNegociacao(checkin, servicoTerceiros.codCliente);				
+				}
+					
+			}			
+			private function dataPrevisao(ev:Event):void{
+				var dataPrevisaoPopup:dataPrevisaoPopUp = new dataPrevisaoPopUp();
+				dataPrevisaoPopup.addEventListener(CloseEvent.CLOSE, removeDataPrevisaoPopUp);
+				PopUpManager.addPopUp(dataPrevisaoPopup, this, true);
+				PopUpManager.centerPopUp(dataPrevisaoPopup);
+				dataPrevisaoPopup.init(urlLogin, CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem));
+				if(CheckinBean(cheGrid.selectedItem).dataPrevisaoEntrega != null){
+					dataPrevisaoPopup.dataPrevisao.text = CheckinBean(cheGrid.selectedItem).dataPrevisaoEntrega;
+				}
+			}
+			private function removeDataPrevisaoPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text)		
+			}			
+			private function conclusao(ev:Event):void{
+				
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente concluir a ordem de serviço?", "Alerta", 3, this, alertClickHandler);
+
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {		// (event.detail==Alert.YES)		
+					if (CheckinBean(cheGrid.selectedItem).hasConclusaoServico == null || CheckinBean(cheGrid.selectedItem).hasConclusaoServico == "N"){
+						
+						//					conclusaoPopup.addEventListener(CloseEvent.CLOSE, removeconclusaoPopup);
+						//					PopUpManager.addPopUp(conclusaoPopup, this, true);
+						//					PopUpManager.centerPopUp(conclusaoPopup);
+						//					conclusaoPopup.init(urlLogin, CheckinBean(cheGrid.selectedItem).id);
+						serviceController.saveDataConclusao(CheckinBean(cheGrid.selectedItem).id);
+					}else{
+						Alert.show("Não é possível reenviar data de conclusão", "Alerta!");
+						return;
+					}
+				}else{				
+					return;
+				}			
+			}
+			private function removeconclusaoPopup(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text)	
+			}
+			
+			private function removePopUpCriarOsEstimada(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private function removePopUpCriarOsSegmento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				CheckinBean(cheGrid.selectedItem).hasSendDbs = segmentoCampos.checkInObj.hasSendDbs;
+				if(campoPesquisa.text == ''){
+					serviceController.findAllChekinRentalGarantia('');
+				}else{
+					serviceController.findAllChekinRentalGarantia(campoPesquisa.text);
+				}
+				
+			}
+			private function doubleClickGrid():void{
+				if(cheGrid.selectedItem != null && CheckinBean(cheGrid.selectedItem).tipoOperacao != "OSINTERNA"){
+					var popup:PopupSelectTipoInspecao = new PopupSelectTipoInspecao();
+					popup.addEventListener(CloseEvent.CLOSE, removePopUpInspecaoTree);
+					PopUpManager.addPopUp(popup,this,true);
+					PopUpManager.centerPopUp(popup)
+					popup.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+				}
+			}
+			private function removePopUpInspecaoTree(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private function onResultFindAllChekin(event:ResultEvent):void{
+				cheGrid.dataProvider = null;
+				cheGrid.dataProvider = ArrayCollection(event.result);
+				 
+				serviceController.getUrlReport();
+			}
+			private function onResultVerificaPendeciasPecas(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					detalhesProposta = new PopupImprimirProposta();
+					detalhesProposta.addEventListener(CloseEvent.CLOSE, removeDetalhesPropostaPopUp);
+					PopUpManager.addPopUp(detalhesProposta, this, true);
+					PopUpManager.centerPopUp(detalhesProposta);
+					detalhesProposta.init(urlLogin, CheckinBean(cheGrid.selectedItem));	
+				}else{
+					Alert.show("Não foi possível gerar relatório!\n" +
+						"Verifique se as peças já foram enviadas para o DBS.", "Alerta");
+				}
+			}
+			
+			private function gerarRelatorio():void{
+				var uv:URLVariables = new URLVariables();
+				uv.idChechIn = CheckinBean(cheGrid.selectedItem).id;
+				uv.codCliente = CheckinBean(cheGrid.selectedItem).codCliente;
+				uv.imprimirComPecas = ((detalhesProposta.imprimirComPecas.selected)?'S':'N');
+				uv.orcamentista = detalhesProposta.orcamentista.text;
+				var url:URLRequest = new URLRequest(urlReport+"/PropostaManutencao");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+
+			}
+			
+//			private function changeComboSituacaoOS():void { //situacaoOSSQL
+//				if(findSituacaoOSCbx.selectedItem != null){
+//					if(findSituacaoOSCbx.selectedItem.valor == 'TODAS'){
+//						serviceController.findAllChekin('TODAS');
+//					}else if(findSituacaoOSCbx.selectedItem.valor2 != 'isCheckIn'){
+//						if(findSituacaoOSCbx.selectedItem.valor1 == findSituacaoOSCbx.selectedItem.valor2 ){
+//							col1findSituacaoOS = findSituacaoOSCbx.selectedItem.valor1;
+//							col2findSituacaoOS = null;
+//							serviceController.findSituacaoOSFaturamento(col1findSituacaoOS);
+//						}else{
+//							col1findSituacaoOS = findSituacaoOSCbx.selectedItem.valor1;
+//							col2findSituacaoOS = findSituacaoOSCbx.selectedItem.valor2;
+//							
+//							serviceController.findSituacaoOS(col1findSituacaoOS,col2findSituacaoOS );
+//						}
+//					}else{
+//						col1findSituacaoOS = findSituacaoOSCbx.selectedItem.valor1;
+//						col2findSituacaoOS = null;
+//						serviceController.findSituacaoOS(col1findSituacaoOS);
+//					}
+//				}
+//				
+//			}
+			private function onResultFindSituacaoOS(event:ResultEvent):void{
+				cheGrid.dataProvider = null;
+				cheGrid.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+			private function onResultFindSituacaoOSFaturamento(event:ResultEvent):void{
+				cheGrid.dataProvider = null;
+				cheGrid.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+			
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			private function onResultSaveDataOrcamento(event:ResultEvent):void{
+				var array:Array = String(event.result).split("-"); 
+				if (array.length == 1){
+					Alert.show(String(event.result), "Alerta");	
+					CheckinBean(cheGrid.selectedItem).hasSendDataOrcamento = 'S'; 					
+					var arrayAux:ArrayCollection = ArrayCollection(cheGrid.dataProvider);
+					cheGrid.dataProvider = null;
+					cheGrid.dataProvider = arrayAux;
+				}else{
+					Alert.show(array[0], "Alerta");
+				}
+				serviceController.findAllChekinRentalGarantia(campoPesquisa.text)	
+			}			
+			private function onResultSaveDataNegociacao(event:ResultEvent):void{
+				var array:Array = String(event.result).split("-"); 
+				if (array.length == 1){
+					Alert.show(String(event.result), "Alerta");
+					serviceController.findAllChekinRentalGarantia(campoPesquisa.text)						
+				}else{
+					Alert.show(array[0], "Alerta");
+				}
+			}
+			
+			private function onResultSaveDataConclusao(event:ResultEvent):void{
+				if(event.result != false){
+					Alert.show("Data salva com sucesso", "Alerta");	
+					serviceController.findAllChekinRentalGarantia(campoPesquisa.text);	
+				}else{
+					Alert.show("Ocorreu um erro ao tentar salvar a data","Alerta");
+				}
+			}
+			private function onResultVerificarAprovacaoProposta(event:ResultEvent):void{
+				if(event.result == null){
+					servicoTerceirosPopup(null);
+				}else{
+					Alert.show(String(event.result),"Alerta");
+				}
+			}
+			
+			private function click_os():void{
+				if(cheGrid.selectedIndex != -1){
+					//findSituacaoOSCbx.selectedIndex = -1;
+					//campoPesquisa.text = CheckinBean(cheGrid.selectedItem).numeroOs;
+				}
+			}
+		
+		]]>
+	</mx:Script>
+	
+	<mx:ArrayCollection id="findSituacaoOS">
+		
+		<mx:Object label="Todas" valor="TODAS"/>
+		<mx:Object label="O.S Iniciada" valor1="s.dataChegada" valor2="s.dataEntregaPedidos"/>
+		<mx:Object label="O.S Entrega de Pedidos" valor1="s.dataEntregaPedidos" valor2="s.dataOrcamento"/>
+		<mx:Object label="O.S em Orçamento" valor1="s.dataOrcamento" valor2="s.dataAprovacao"/>
+		<mx:Object label="O.S Aprovada" valor1="s.dataAprovacao" valor2="s.dataPrevisaoEntrega"/>
+		<mx:Object label="O.S com Previsão de Entrega" valor1="s.dataPrevisaoEntrega" valor2="s.dataTerminoServico"/>
+		<mx:Object label="O.S Concluída" valor1="s.dataTerminoServico" valor2="s.dataFaturamento"/>
+		<mx:Object label="O.S Faturada" valor1="s.dataFaturamento" valor2="s.dataFaturamento"/>
+		<mx:Object label="O.S com Checkin" valor1="'S'" valor2="isCheckIn"/>
+		<mx:Object label="O.S sem Checkin" valor1="'N'" valor2="isCheckIn"/>
+		<mx:Object label="O.S Rejeitadas pelo consultor" valor1="R" valor2="isCheckIn"/>
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllChekin" result="onResultFindAllChekin(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllChekinRentalGarantia" result="onResultFindAllChekin(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveDataOrcamento" result="onResultSaveDataOrcamento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveDataNegociacao" result="onResultSaveDataNegociacao(event);ProgressBarHelper.removeProgressBar()" />		
+		<mx:method name="verificaPendeciasPecas" result="onResultVerificaPendeciasPecas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveDataConclusao" result="onResultSaveDataConclusao(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="verificarAprovacaoProposta" result="onResultVerificarAprovacaoProposta(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findSituacaoOS" result="onResultFindSituacaoOS(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findSituacaoOSFaturamento" result="onResultFindSituacaoOSFaturamento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveDataFaturamento" result="onResultSaveDataFaturamento(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:VBox height="100%" width="100%" horizontalAlign="center">
+		<mx:ApplicationControlBar height="50"  width="100%" horizontalAlign="center">
+			<mx:Label text="Incluir data de Faturamento de Garantia" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:HBox width="100%">
+			
+			<mx:Label text="Pesquisar:"/>
+				<mx:TextInput width="92" id="campoPesquisa" toolTip="Digite: Modelo, Série, Cliente ou Número OS para fazer uma pesquisa." />
+			
+			<!--mx:Label text="Cliente:"/>
+				<mx:TextInput width="105" id="clienteText"/-->
+			
+			<mx:Button label="Pesquisar" click="filtroCheckin()"/>
+			
+			<!--mx:Button label="Criar OS Interna" click="criarOSInterna()"/-->
+		</mx:HBox>	
+		
+		<mx:DataGrid width="100%" id="cheGrid" height="100%" doubleClickEnabled="true" doubleClick="doubleClickGrid()" click="click_os()">
+			<mx:columns>
+			<mx:DataGridColumn headerText="Docto." textAlign="left" dataField="id" width="45"/>	
+				<mx:DataGridColumn headerText="St." textAlign="left" width="25">				
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox horizontalAlign="center">
+								<mx:Image horizontalAlign="center" width="15" height="15" source="{data.nomeImagemStatus}" toolTip="Status OS"/>
+							</mx:HBox>
+						</mx:Component>                            
+					</mx:itemRenderer> 				
+				</mx:DataGridColumn>				
+				
+				<mx:DataGridColumn headerText="Data" dataField="data" width="100"/>
+				<!--mx:DataGridColumn headerText="Tipo &#13;Cliente" dataField="tipoCliente" width="40"/-->
+				<mx:DataGridColumn headerText="Num. OS" dataField="numeroOs" width="75"/>
+				<mx:DataGridColumn headerText="Filial" dataField="filialStr" width="75"/>
+				<mx:DataGridColumn headerText="Cliente" dataField="cliente" width="140"/>
+				<!--mx:DataGridColumn headerText="Note &#13; CRM" dataField="obsCrm"/>
+				<mx:DataGridColumn headerText="Status &#13; CRM" dataField="statusCrm"/-->
+				<mx:DataGridColumn headerText="Modelo" dataField="modelo" width="65"/>
+				<mx:DataGridColumn headerText="Série" dataField="serie" width="100"/>
+				<mx:DataGridColumn headerText="Job &#13;Ctrl" dataField="jobControl" width="35"/>
+				<mx:DataGridColumn headerText="ID &#13;Equip." dataField="idEquipamento" textAlign="center" width="25"/>
+				<!--mx:DataGridColumn headerText="Serv. &#13;Terc" width="40">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/sendCrm.png"  width="15" buttonMode="true" toolTip="Serviços de Terceiros" height="15" click="{dispatchEvent(new Event('SERVICOSTERCEIROS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Dados &#13;OS" width="40">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/detailed.png" width="15" buttonMode="true" height="15"  toolTip="Dados OS" click="{dispatchEvent(new Event('CRIAROSESTIMADA', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				<!--mx:DataGridColumn headerText="Criar Data &#13; Orçamento" width="110">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/date.png" includeInLayout="{((data.dataOrcamento != null)?false:true)}" visible="{((data.dataOrcamento != null)?false:true)}" width="15" buttonMode="true" toolTip="Criar data orçamento" height="15" click="{dispatchEvent(new Event('DATAORCAMENTO', true))}"/>
+								<mx:Label text="{data.dataOrcamento}" includeInLayout="{((data.dataOrcamento != null)?true:false)}" visible="{((data.dataOrcamento != null)?true:false)}" buttonMode="true" toolTip="Criar data orçamento" height="15" click="{dispatchEvent(new Event('DATAORCAMENTO', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				
+				<mx:DataGridColumn headerText="Status &#13;Negociação" width="220">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center" backgroundColor="{(data.statusNegociacaoConsultor == 'A')?0x99FF99:(data.statusNegociacaoConsultor == 'P')?0xFFCC00:(data.statusNegociacaoConsultor == 'R')?0x99FF6347:0xFFFFFF}">
+								<mx:Label text="{data.descricaoNegociacaoConsultor}" buttonMode="true" toolTip="Visualizar Observações do Status da Negociação" height="15" click="{dispatchEvent(new Event('DESCRICAOSTATUSNEGOCIACAOCONSULTOR', true))}"/>
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<!--mx:DataGridColumn headerText="Data &#13;Aprovação" dataField="dataAprovacao" width="100"/>
+				<mx:DataGridColumn headerText="Data &#13;Previsão&#13;Entrega" width="110" dataField="dataPrevisaoEntrega"/>
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/date.png"  width="15" buttonMode="true" includeInLayout="{(data.statusNegociacaoConsultor == 'A' &amp;&amp; data.dataPrevisaoEntrega == null)?true:false}" visible="{(data.statusNegociacaoConsultor == 'A' &amp;&amp; data.dataPrevisaoEntrega == null)?true:false}" toolTip="Criar data de previsão de entrega" height="15" click="{dispatchEvent(new Event('DATAPREVISAO', true))}"/>
+								<mx:Label text="{data.dataPrevisaoEntrega}" includeInLayout="{(data.dataPrevisaoEntrega != null)?true:false}" visible="{(data.dataPrevisaoEntrega != null)?true:false}" toolTip="Modificar data de previsão de entrega" height="15" click="{dispatchEvent(new Event('DATAPREVISAO', true))}" buttonMode="true" />
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Data &#13;Término&#13;Serviço" dataField="dataTerminoServico" width="100"/-->
+				<mx:DataGridColumn headerText="Data &#13;Faturamento" width="100">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/date.png"  width="15" buttonMode="true" includeInLayout="{(data.statusNegociacaoConsultor == 'A' &amp;&amp; data.dataTerminoServico != '' &amp;&amp; data.dataTerminoServico != null &amp;&amp; data.dataFaturamento == null)?true:false}" visible="{(data.statusNegociacaoConsultor == 'A' &amp;&amp; data.dataTerminoServico != '' &amp;&amp; data.dataTerminoServico != null &amp;&amp; data.dataFaturamento == null)?true:false}" toolTip="Criar data de faturamento" height="15" click="{dispatchEvent(new Event('DATAFATURAMENTO', true))}"/>
+								<mx:Label text="{data.dataFaturamento}" includeInLayout="{(data.dataFaturamento != null)?true:false}" visible="{(data.dataFaturamento != null)?true:false}" toolTip="Modificar data de faturamento" height="15" click="{dispatchEvent(new Event('DATAFATURAMENTO', true))}" buttonMode="true" />
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<!--mx:DataGridColumn headerText="Anexos" textAlign="left" width="50">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/camera.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: anexar fotos a OS." click="{dispatchEvent(new Event('FOTO', true))}"/>
+								<mx:Image source="img/anexo.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: anexar um arquivo a OS." click="{dispatchEvent(new Event('ARQUIVO', true))}"/>
+							</mx:HBox>
+							
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				<mx:DataGridColumn headerText="PDF" width="35">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/contrato.png"  width="15" buttonMode="true"  toolTip="Imprimir Relatório" height="15" click="{dispatchEvent(new Event('IMPRIMERELATORIO', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>				
+				<!--mx:DataGridColumn headerText="Obs." textAlign="center" width="35">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/edit.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: incluir/visualizar observação da OS." click="{dispatchEvent(new Event('OBS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				<mx:DataGridColumn headerText="Cons. &#13;Datas" textAlign="center" width="35">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/datasOS.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: visualizar o fluxo de data da OS." click="{dispatchEvent(new Event('DATASOS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<!--mx:DataGridColumn headerText="Excluir" dataField="excluir" width="35">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" toolTip="Clique para: Excluir a OS selecionada."  visible="{(data.numeroOs != null &amp;&amp; data.numeroOs != '')}" click="{dispatchEvent(new Event('EXCLUIROS', true)) }" />
+							</mx:VBox>
+						</mx:Component> 	
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->	
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</mx:Canvas>

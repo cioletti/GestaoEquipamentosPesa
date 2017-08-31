@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Motivo da Rejeição da OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="498" height="292">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			
+			import mx.containers.*;
+			private var checkInObj:CheckinBean; 	
+			import util.ProgressBarHelper;
+			private var myValidators:Array;
+			private var urlLogin:String;
+			// Os dados para preencher essa tela são da tabela situaçãoOS. Os dados vão para o Bean Checkin e mandandos para a tela.
+			//private var motivoRejeicaoOS: MotivoRejeicaoOSBean = new MotivoRejeicaoOSBean();
+			
+			public function init(urlLogin:String, checkInObj:CheckinBean):void{
+				this.urlLogin = urlLogin;
+				this.checkInObj = checkInObj;
+				//serviceController.findMotivoRejeicao(idCheckin);	
+				motivoRejeicao.text = this.checkInObj.tipoRejeicao;
+				obsText.text = this.checkInObj.obs;
+			}
+//			private function onResultFindMotivoRejeicao(event:ResultEvent):void{
+//				motivoRejeicaoOS = MotivoRejeicaoOSBean(event.result);
+//				motivoRejeicao.text = motivoRejeicaoOS.tipoRejeicao;
+//				obsText.text = motivoRejeicaoOS.obs;
+//			}
+			private function fecharPoUp():void{
+				this.close();
+			}		
+			
+		]]>
+	</mx:Script>	
+	<!--<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findMotivoRejeicao" result="onResultFindMotivoRejeicao(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject> -->
+	
+	<mx:Form x="10" y="10" width="458" height="206">
+		<mx:FormItem label="Tipo da rejeição:">
+			<mx:TextInput id="motivoRejeicao" editable="false" width="119"/>			
+		</mx:FormItem>
+		<mx:FormItem label="Observação:" width="411" height="115">
+		<mx:TextArea width="269" height="108" editable="false" maxChars="255" id="obsText" />
+		</mx:FormItem>
+		<mx:FormItem width="418">
+	<mx:Button label="fechar" click="fecharPoUp()"/>		
+			
+		</mx:FormItem>
+	</mx:Form>
+			
+		
+			
+	
+	
+	
+</util:ModuleTitleWindow>

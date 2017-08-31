@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Processo Oficina" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	<mx:Script>
+		<![CDATA[
+			import bean.LegendaProcessoOficinaBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var idCheckin:Number;
+			private var dataHeader:String; 
+			private var jobControl:String; 
+			public var isSave:Boolean = false;
+			public function init(urlLogin:String, idCheckin:Number, dataHeader:String, descricaoStatusLegenda:String, jobControl:String):void{
+				this.idCheckin = idCheckin;
+				this.dataHeader = dataHeader;
+				this.urlLogin = urlLogin;
+				serviceController.findAllLegendaProcessoOficina();
+				observacaoTxtArea.text = descricaoStatusLegenda;
+				this.jobControl = jobControl;
+			}
+			private function onResultFindAllLegendaProcessoOficina(event:ResultEvent):void{
+				legendaCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultAlterarFluxoProcessoOficina(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Status alterado com sucesso!", "Alerta");
+					this.close();
+					return;
+				}
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(legendaCbx.selectedIndex == -1){
+					Alert.show("Selecione um status!", "Alerta");
+					return;
+				}
+				serviceController.alterarFluxoProcessoOficinaJobControlLegenda(this.idCheckin, LegendaProcessoOficinaBean(legendaCbx.selectedItem).sigla, this.dataHeader, observacaoTxtArea.text, jobControl);
+				this.isSave = true;
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllLegendaProcessoOficina" result="onResultFindAllLegendaProcessoOficina(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="alterarFluxoProcessoOficinaJobControlLegenda" result="onResultAlterarFluxoProcessoOficina(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>	
+	<mx:ComboBox id="legendaCbx" prompt="Selecione" labelField="descricao" x="96" y="26"/>
+	<mx:Label text="Observação" x="59" y="56" height="143" width="265"/>
+	<mx:TextArea id="observacaoTxtArea" x="59" y="71" height="143" width="265" maxChars="400"/>
+	<mx:Button x="152.5" y="222" label="Alterar" click="button1_clickHandler(event)"/>
+</util:ModuleTitleWindow>

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+	<util:ModuleTitleWindow title="Peças" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="832" height="596" xmlns:control="br.com.thinklab.util.control.*">	
+
+	<mx:Script>
+		<![CDATA[
+			import bean.PecasAprovacaoOSBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			public var listaPecas:ArrayCollection = new ArrayCollection();
+			
+			public function init(listaPecas:ArrayCollection):void{
+				this.listaPecas = listaPecas;
+				pecasAprovarOs.dataProvider = listaPecas;
+				this.atualizarTotalValor(listaPecas);
+				pecasAprovarOs.addEventListener("REMOVERPECA", removerPeca);
+			}
+			
+			private function removerPeca(ev: Event): void{
+				if(pecasAprovarOs.dataProvider != null && pecasAprovarOs.selectedIndex != -1){
+					ArrayCollection(pecasAprovarOs.dataProvider).removeItemAt(pecasAprovarOs.selectedIndex);
+					
+					var listPecas:ArrayCollection = ArrayCollection(pecasAprovarOs.dataProvider);
+					this.atualizarTotalValor(listPecas);
+				}
+			}
+			
+			private function atualizarTotalValor(listPecas:ArrayCollection):void{
+				var clPrice:Number = Number(0);
+				var dnPrice:Number = Number(0);
+				for(var i:int = 0; i < listPecas.length; i++){
+					
+					var pecas:PecasAprovacaoOSBean = PecasAprovacaoOSBean(listPecas.getItemAt(i));
+					
+					
+					
+					var uniteCL:String  = pecas.uniteCl.replace(".","").replace(",",".");
+					var aux:Number = Number(uniteCL) * Number(pecas.qtd);
+					clPrice = clPrice + aux;
+					
+					
+					var uniteRate:String  = pecas.uniteRate.replace(".","").replace(",",".");
+					var aux1:Number = Number(uniteRate) * Number(pecas.qtd);
+					dnPrice = dnPrice + aux1;
+					
+					
+				}
+				clPriceTxt.text = MoedaFormatter.format(clPrice);
+				dnPriceTxt.text = MoedaFormatter.format(dnPrice);
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(qtdText.text == '' ||
+					partNumberText.text == '' ||
+					partNameText.text == '' ||
+					uniteRateTxt.text == '' ||
+					//dnPriceTxt.text == '' ||
+					uniteClTxt.text == ''){
+					//clPriceTxt.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatórios!", "Alerta");
+					return;
+				}
+				var clPrice:Number = Number(0);
+				
+				if(clPriceTxt.text != ''){
+					var x:String = clPriceTxt.text.replace(".","").replace(",",".");
+					clPrice = Number(x);
+				}
+				
+				var uniteCL:String  = uniteClTxt.text.replace(".","").replace(",",".");
+				var aux:Number = Number(uniteCL) * Number(qtdText.text);
+				clPrice = clPrice + aux;
+				clPriceTxt.text = MoedaFormatter.format(clPrice);
+				
+				
+				
+				var dnPrice:Number = Number(0);
+				
+				if(dnPriceTxt.text != ''){
+					var k:String = dnPriceTxt.text.replace(".","").replace(",",".");
+					dnPrice = Number(k);
+				}
+				
+				var uniteRate:String  = uniteRateTxt.text.replace(".","").replace(",",".");
+				var aux1:Number = Number(uniteRate) * Number(qtdText.text);
+				dnPrice = dnPrice + aux1;
+				dnPriceTxt.text = MoedaFormatter.format(dnPrice);
+				
+				
+				
+				var pecas:PecasAprovacaoOSBean = new PecasAprovacaoOSBean();
+				pecas.qtd = qtdText.text;
+				pecas.partNo = partNumberText.text;
+				pecas.partName = partNameText.text;
+				pecas.uniteRate = uniteRateTxt.text;
+				pecas.dnPrice = dnPriceTxt.text;
+				pecas.uniteCl = uniteClTxt.text;
+				pecas.clPrice = clPriceTxt.text;
+				listaPecas.addItem(pecas);
+				pecasAprovarOs.dataProvider = listaPecas;
+				qtdText.text = '';
+				partNumberText.text = '';
+				partNameText.text = '';
+				uniteRateTxt.text = '';
+				//dnPriceTxt.text = '';
+				uniteClTxt.text = '';
+				//clPriceTxt.text = '';
+			}
+		]]>
+	</mx:Script>
+		<mx:CurrencyFormatter id="MoedaFormatter" precision="2" 
+							  currencySymbol="" decimalSeparatorTo="," decimalSeparatorFrom=","  thousandsSeparatorFrom="." thousandsSeparatorTo="."/>
+
+	<mx:DataGrid x="0" y="164" width="100%" height="100%" id="pecasAprovarOs">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Qtd" dataField="qtd"/>
+			<mx:DataGridColumn headerText="Part Number" dataField="partNo"/>
+			<mx:DataGridColumn headerText="Part Name" dataField="partName"/>
+			<mx:DataGridColumn headerText="Preço&#13;Unitário" dataField="uniteRate"/>
+			<mx:DataGridColumn headerText="Preço&#13;de&#13;Venda&#13;Unitário" dataField="uniteCl"/>
+			<!--mx:DataGridColumn headerText="Total&#13;Custo" dataField="dnPrice"/>
+			<mx:DataGridColumn headerText="Total&#13;a Preço&#13;de&#13;Venda" dataField="clPrice"/-->
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" toolTip="Clique para: Excluir a Peça." click="{dispatchEvent(new Event('REMOVERPECA', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:Button x="340.5" y="118" label="Add" click="button1_clickHandler(event)"/>
+	<mx:TextInput x="87" y="6" tabIndex="1" width="77" restrict="[0-9]" id="qtdText"/>
+	<mx:TextInput x="87" y="36" tabIndex="2" width="77" maxChars="50" id="partNumberText"/>
+	<mx:TextInput x="262" y="6" tabIndex="3" width="161.5" id="partNameText"/>	
+	<control:DecimalInput tabIndex="4" editable="true"  id="uniteRateTxt" width="98" text="" precision="2" currencyFormat="br" useThousandsSeparator="true" x="262" y="36"/>
+	<control:DecimalInput editable="false"  id="clPriceTxt" width="93" text=""   precision="2" currencyFormat="br" useThousandsSeparator="true" x="670.5" y="96"/>
+	<control:DecimalInput tabIndex="5" editable="true"  id="uniteClTxt" width="98" text=""   precision="2" currencyFormat="br" useThousandsSeparator="true" x="578.5" y="6"/>
+	<control:DecimalInput editable="false"  id="dnPriceTxt" width="93" text=""   precision="2" currencyFormat="br" useThousandsSeparator="true" x="670.5" y="123"/>
+	<mx:Label x="10" y="7" text="Qtd"/>
+	<mx:Label x="172" y="7" text="Part Name"/>
+	<mx:Label x="172" y="37" text="Preço Unitário" />
+	<mx:Label x="532.5" y="124" text="Total a Custo"/>
+	<mx:Label x="431.5" y="7" text="Preço de Venda Unitário"/>
+	<mx:Label x="527.5" y="97" text="Total a Preço de Venda"/>
+	<mx:Label x="5" y="37" text="Part Number"/>
+	
+</util:ModuleTitleWindow>

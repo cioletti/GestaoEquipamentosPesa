@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var urlReport:String;
+			private var col1findSituacaoOS:String; // Variavel para pegar a primeira coluna da busca do combo de OS
+			private var col2findSituacaoOS:String;// Variavel para pegar a segunda coluna da busca do combo de OS
+			private var usuarioBean:UsuarioBean;
+			private	var segmentoCampos:CriarSegmentoOS;
+			//var conclusaoPopup:DataConclusaoPopUp = new DataConclusaoPopUp();
+			
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{ // Método que inicia ao carregar componente. (Foi chamado através de GestaoEquipamentos) 
+				campoPesquisa.addEventListener(KeyboardEvent.KEY_DOWN,keyPressed);
+				this.urlLogin = urlLogin;
+				serviceController.findAllChekinConsultor('');				
+				cheGrid.addEventListener("SEGMENTAROS",segmentarOS); // Adiciona evento (imagem) e chama o método criarOsEstimada.
+				cheGrid.addEventListener("LIBERAROS", liberarOS); 
+				cheGrid.addEventListener("FOTO", foto);
+				cheGrid.addEventListener("ARQUIVO", arquivo);
+				cheGrid.addEventListener("IMPRIMERELATORIO", imprimeRelatorio);
+				cheGrid.addEventListener("OBS", obsOS); 
+				cheGrid.addEventListener("DATASOS", datasOS);
+				//cheGrid.addEventListener("CONCLUSAO", conclusao);				
+				this.usuarioBean = usuarioBean;
+			}	
+			
+			private function keyPressed(evt:KeyboardEvent):void{				
+				if(evt.keyCode == 13){
+					serviceController.findAllChekinConsultor(campoPesquisa.text);
+					}
+				}
+			
+			private function segmentarOS(ev: Event): void{
+				if (CheckinBean(cheGrid.selectedItem).numeroOs != "" && CheckinBean(cheGrid.selectedItem).numeroOs != null ){
+					segmentoCampos = new CriarSegmentoOS();
+					segmentoCampos.addEventListener(CloseEvent.CLOSE, removePopUpCriarOsSegmento);
+					PopUpManager.addPopUp(segmentoCampos,this,true);
+					PopUpManager.centerPopUp(segmentoCampos);					
+					
+					this.bloquearAcoesConsultor(segmentoCampos);					
+					
+					segmentoCampos.init(urlLogin, CheckinBean(cheGrid.selectedItem).numeroOs,CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem), CheckinBean(cheGrid.selectedItem).serie.substr(0,4), usuarioBean, null);
+					
+				}
+//				else{ Supervisor não pode criar OS.
+//					segmentoCampos = new CriarSegmentoOS();
+//					var criarOs:CriarOsEstimada = new CriarOsEstimada();
+//					criarOs.addEventListener(CloseEvent.CLOSE, removePopUpCriarOsEstimada);
+//					PopUpManager.addPopUp(criarOs,this,true);
+//					PopUpManager.centerPopUp(criarOs)					
+//					criarOs.init(urlLogin, CheckinBean(cheGrid.selectedItem).numeroOs, CheckinBean(cheGrid.selectedItem).cliente, CheckinBean(cheGrid.selectedItem).serie, CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem), CheckinBean(cheGrid.selectedItem).idOsPalm, usuarioBean, true);										
+//					
+//				}
+			}
+			
+			private function obsOS(ev:Event):void{			
+				var popUpObsOs:PopUpObsOS = new PopUpObsOS();				
+				popUpObsOs.addEventListener(CloseEvent.CLOSE, removeoObsOSPopUp);
+				PopUpManager.addPopUp(popUpObsOs, this, true);
+				PopUpManager.centerPopUp(popUpObsOs);
+				popUpObsOs.init(urlLogin, CheckinBean(cheGrid.selectedItem), this.usuarioBean);					
+				
+			}
+			
+			private function removeoObsOSPopUp(obj:CloseEvent):void{
+				serviceController.findAllChekinConsultor('');
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}	
+			
+			private function datasOS(ev:Event):void{			
+				var popUpDatasOs:PopUpDatasOS = new PopUpDatasOS();				
+				popUpDatasOs.addEventListener(CloseEvent.CLOSE, removeDatasOSPopUp);
+				PopUpManager.addPopUp(popUpDatasOs, this, true);
+				PopUpManager.centerPopUp(popUpDatasOs);
+				popUpDatasOs.init(urlLogin, CheckinBean(cheGrid.selectedItem));					
+				
+			}
+			
+			private function removeDatasOSPopUp(obj:CloseEvent):void{				
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}			
+			/**
+			 * Método para bloquear algumas ações que o perfil de recebedor não possui.
+			 */
+			private function bloquearAcoesConsultor(segmentoCampos:CriarSegmentoOS):void{
+				//segmentoCampos.segmentoGrid.doubleClickEnabled = false; // Para o perfil de Recebedor não é permitido incluir peças.
+				segmentoCampos.sendPecasDbs.visible = false;
+				segmentoCampos.sendPecasDbs.includeInLayout = false;					
+				segmentoCampos.pendenciasDePecas.visible = false;
+				segmentoCampos.pendenciasDePecas.includeInLayout = false;					
+				segmentoCampos.verificaPecas.visible = false;
+				segmentoCampos.verificaPecas.includeInLayout = false;			
+				segmentoCampos.adicionarSegmento.visible = false;
+				segmentoCampos.adicionarSegmento.includeInLayout = false;			
+				segmentoCampos.salvar.visible = false;
+				segmentoCampos.salvar.includeInLayout = false;			
+				segmentoCampos.columnExcluir.visible = false;
+			}	
+			
+			private function liberarOS(ev: Event):void{
+				var popUpLiberarOS:PopupConsultorLiberarOS = new PopupConsultorLiberarOS();
+				popUpLiberarOS.addEventListener(CloseEvent.CLOSE, removeLiberarOSPopUp);
+				PopUpManager.addPopUp(popUpLiberarOS, this, true);
+				PopUpManager.centerPopUp(popUpLiberarOS);
+				popUpLiberarOS.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+				
+			}
+			
+			private function removeLiberarOSPopUp(obj:CloseEvent):void{
+				serviceController.findAllChekinConsultor('');
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function onResultLiberarOSParaDigitador(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Operação realizada com sucesso","Alerta!");
+					serviceController.findAllChekinConsultor('');	
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação","Alerta!");
+				}				
+			}
+			
+			private function foto(ev:Event):void{
+				var popUpFotos:PopupFotosOS = new PopupFotosOS();
+								popUpFotos.addEventListener(CloseEvent.CLOSE, removeFotosOSPopUp);
+								PopUpManager.addPopUp(popUpFotos, this, true);
+								PopUpManager.centerPopUp(popUpFotos);
+								popUpFotos.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+			}
+			
+			private function removeFotosOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function arquivo(ev:Event):void{
+				var popUpArquivos:PopupArquivosOS= new PopupArquivosOS();
+				popUpArquivos.addEventListener(CloseEvent.CLOSE, removeArquivoOSPopUp);
+				PopUpManager.addPopUp(popUpArquivos, this, true);
+				PopUpManager.centerPopUp(popUpArquivos);
+				popUpArquivos.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+			}
+			
+			private function removeArquivoOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function filtroCheckin():void{
+				
+				serviceController.findAllChekinConsultor(campoPesquisa.text);
+//				serviceController.findAllChekinByJobControlCbx(campoPesquisa.text, JobControlBean(jobControlCbx.selectedItem).descricao); //Busca pelo Job Control também
+				
+			}
+			
+			//			private function dataOrcamento (ev:Event):void{	
+			//				var checkin: CheckinBean = CheckinBean (cheGrid.selectedItem);
+			//				checkin.hasSendDataOrcamento = 'S';	
+			//				if (checkin.numeroOs != null ){
+			//					serviceController.saveDataOrcamento(checkin);				
+			//				}							
+			//			}			
+			//			private function imprimeRelatorio(ev:Event):void{
+			//					serviceController.verificarGerarcaoProposta(CheckinBean(cheGrid.selectedItem).id);		
+			//			}
+			//			private function removeServicosTerceirosPopUp(obj:CloseEvent):void{
+			//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			//			}
+			//			private function enviarAprovacao (ev:Event):void{					
+			//				serviceController.verificarAprovacaoProposta( CheckinBean (cheGrid.selectedItem).id);	
+			//											
+			//			}
+			//			private var motivoRejeicaoOS:PopUpMotivoRejeicaoOS;
+			//			private function verMotivoRejeicao (ev:Event):void{					
+			//				motivoRejeicaoOS = new PopUpMotivoRejeicaoOS();
+			//				motivoRejeicaoOS.addEventListener(CloseEvent.CLOSE, removeMotivoRejeicaoOSPopUp);
+			//				PopUpManager.addPopUp(motivoRejeicaoOS, this, true);
+			//				PopUpManager.centerPopUp(motivoRejeicaoOS);
+			//				motivoRejeicaoOS.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+			//											
+			//			}
+			//			private function removeMotivoRejeicaoOSPopUp(obj:CloseEvent):void{
+			//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			//			}
+			
+			private function dataOrcamento (ev:Event):void{	
+				var checkin: CheckinBean = CheckinBean (cheGrid.selectedItem);
+				checkin.hasSendDataOrcamento = 'S';	
+				if (checkin.numeroOs != null ){
+					serviceController.saveDataOrcamento(checkin);				
+				}							
+			}	
+			private var detalhesProposta:PopupImprimirProposta;
+			
+			private function onResultVerificaPendeciasPecas(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					detalhesProposta = new PopupImprimirProposta();
+					detalhesProposta.addEventListener(CloseEvent.CLOSE, removeDetalhesPropostaPopUp);
+					PopUpManager.addPopUp(detalhesProposta, this, true);
+					PopUpManager.centerPopUp(detalhesProposta);
+					detalhesProposta.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+					detalhesProposta.imprimirSubTributaria.visible = false;
+					detalhesProposta.fatorUrgencia.visible = false;
+				}else{
+					Alert.show("Não foi possível gerar relatório!\n" +
+						"Verifique se as peças já foram enviadas para o DBS.", "Alerta");
+				}
+			}
+			
+			
+			private function imprimeRelatorio(ev:Event):void{
+				serviceController.verificaPendeciasPecas(CheckinBean(cheGrid.selectedItem).id);
+			}
+			private function gerarRelatorio():void{
+				var uv:URLVariables = new URLVariables();
+				uv.idChechIn = CheckinBean(cheGrid.selectedItem).id;
+				uv.codCliente = CheckinBean(cheGrid.selectedItem).codCliente;
+				uv.imprimirComPecas = ((detalhesProposta.imprimirComPecas.selected)?'S':'N');
+				uv.orcamentista = detalhesProposta.orcamentista.text;
+				var url:URLRequest = new URLRequest(urlReport+"/PropostaManutencao");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+			private function removeDetalhesPropostaPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(detalhesProposta.print){
+					this.gerarRelatorio();
+				}
+			}
+			
+			private function removeServicosTerceirosPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private function enviarAprovacao (ev:Event):void{					
+				serviceController.verificarAprovacaoProposta( CheckinBean (cheGrid.selectedItem).id);	
+				
+			}
+			private var motivoRejeicaoOS:PopUpMotivoRejeicaoOS;
+			private function verMotivoRejeicao (ev:Event):void{					
+				motivoRejeicaoOS = new PopUpMotivoRejeicaoOS();
+				motivoRejeicaoOS.addEventListener(CloseEvent.CLOSE, removeMotivoRejeicaoOSPopUp);
+				PopUpManager.addPopUp(motivoRejeicaoOS, this, true);
+				PopUpManager.centerPopUp(motivoRejeicaoOS);
+				motivoRejeicaoOS.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+				
+			}
+			private function removeMotivoRejeicaoOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			
+			//			private	var servicoTerceiros:PopupServicoTerceiros;
+			//			private function servicoTerceirosPopup(ev:Event):void{
+			//				servicoTerceiros = new PopupServicoTerceiros();
+			//				servicoTerceiros.addEventListener(CloseEvent.CLOSE, removeServicoTerceirosPopUp);
+			//				PopUpManager.addPopUp(servicoTerceiros, this, true);
+			//				PopUpManager.centerPopUp(servicoTerceiros);
+			//				servicoTerceiros.init(urlLogin, CheckinBean(cheGrid.selectedItem).id, CheckinBean(cheGrid.selectedItem).codCliente, CheckinBean(cheGrid.selectedItem));
+			//				
+			//			}
+			//			private function removeServicoTerceirosPopUp(obj:CloseEvent):void{
+			//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			//				var checkin: CheckinBean = CheckinBean (cheGrid.selectedItem);
+			//				
+			//				if (checkin.numeroOs != null && servicoTerceiros.isSave == true){
+			//					serviceController.saveDataNegociacao(checkin, servicoTerceiros.codCliente);				
+			//				}
+			//					
+			//			}			
+			//			private function dataPrevisao(ev:Event):void{
+			//				var dataPrevisaoPopup:dataPrevisaoPopUp = new dataPrevisaoPopUp();
+			//				dataPrevisaoPopup.addEventListener(CloseEvent.CLOSE, removeDataPrevisaoPopUp);
+			//				PopUpManager.addPopUp(dataPrevisaoPopup, this, true);
+			//				PopUpManager.centerPopUp(dataPrevisaoPopup);
+			//				dataPrevisaoPopup.init(urlLogin, CheckinBean(cheGrid.selectedItem).id);
+			//				
+			//			}
+			//			private function removeDataPrevisaoPopUp(obj:CloseEvent):void{
+			//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			//				serviceController.findAllChekin('');		
+			//			}			
+			//			private function conclusao(ev:Event):void{
+			//				
+			//				Alert.yesLabel = "Sim";
+			//				Alert.noLabel = "Não";				
+			//				Alert.show("Deseja realmente concluir a ordem de serviço?", "Alerta", 3, this, alertClickHandler);
+			//
+			//			}
+			//			
+			//			private function alertClickHandler(event:CloseEvent):void {				
+			//				if (event.detail==Alert.YES) {		// (event.detail==Alert.YES)		
+			//					if (CheckinBean(cheGrid.selectedItem).hasConclusaoServico == null || CheckinBean(cheGrid.selectedItem).hasConclusaoServico == "N"){
+			//						
+			//						//					conclusaoPopup.addEventListener(CloseEvent.CLOSE, removeconclusaoPopup);
+			//						//					PopUpManager.addPopUp(conclusaoPopup, this, true);
+			//						//					PopUpManager.centerPopUp(conclusaoPopup);
+			//						//					conclusaoPopup.init(urlLogin, CheckinBean(cheGrid.selectedItem).id);
+			//						serviceController.saveDataConclusao(CheckinBean(cheGrid.selectedItem).id);
+			//					}else{
+			//						Alert.show("Não é possível reenviar data de conclusão", "Alerta!");
+			//						return;
+			//					}
+			//				}else{				
+			//					return;
+			//				}			
+			//			}
+			//			private function removeconclusaoPopup(obj:CloseEvent):void{
+			//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			//				serviceController.findAllChekin('');	
+			//			}
+			
+			private function removePopUpCriarOsEstimada(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private function removePopUpCriarOsSegmento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				CheckinBean(cheGrid.selectedItem).hasSendDbs = segmentoCampos.checkInObj.hasSendDbs;
+				serviceController.findAllChekinConsultor('');	
+			}
+			private function doubleClickGrid():void{
+				if(cheGrid.selectedItem != null && CheckinBean(cheGrid.selectedItem).tipoOperacao != "OSINTERNA"){
+					var popup:PopupSelectTipoInspecao = new PopupSelectTipoInspecao();
+					popup.addEventListener(CloseEvent.CLOSE, removePopUpInspecaoTree);
+					PopUpManager.addPopUp(popup,this,true);
+					PopUpManager.centerPopUp(popup)
+					popup.init(urlLogin, CheckinBean(cheGrid.selectedItem));
+				}
+			}
+			private function removePopUpInspecaoTree(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private function onResultFindAllChekinConsultor(event:ResultEvent):void{
+				cheGrid.dataProvider = null;
+				cheGrid.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+			//			private function onResultVerificarGerarcaoProposta(event:ResultEvent):void{
+			//				if(Boolean(event.result) == true){
+			////					var ter:ServicosTerceirosPopUp = new ServicosTerceirosPopUp();
+			////					ter.addEventListener(CloseEvent.CLOSE, removeServicosTerceirosPopUp);
+			////					PopUpManager.addPopUp(ter,this,true);
+			////					PopUpManager.centerPopUp(ter);
+			////					ter.init(urlLogin, CheckinBean(cheGrid.selectedItem).id);	
+			//					gerarRelatorio();
+			//				}else{
+			//					Alert.show("Não foi possível gerar relatório, verifique se todas as configurações do precificador para o modelo e prefixo da máquina.\n" +
+			//						" Verifique também se as peças já foram enviadas para o DBS.", "Alerta");
+			//				}
+			//			}
+			//			
+			//			private function gerarRelatorio():void{
+			//				var uv:URLVariables = new URLVariables();
+			//				uv.idChechIn = CheckinBean(cheGrid.selectedItem).id;
+			//				uv.codCliente = CheckinBean(cheGrid.selectedItem).codCliente;
+			//				
+			//				var url:URLRequest = new URLRequest(urlReport+"/PropostaManutencao");
+			//				url.method = "POST";
+			//				url.data = uv;
+			//				navigateToURL(url,"_blank");
+			//
+			//			}
+			private function changeComboSituacaoOS():void { //situacaoOSSQL
+				if(findSituacaoOSCbx.selectedItem != null){
+					if(findSituacaoOSCbx.selectedItem.valor == 'TODAS'){
+						serviceController.findAllConsultorGaosChekin('TODAS','EXT');
+//					}else if(findSituacaoOSCbx.selectedItem.valor2 != 'isCheckIn'){
+//						if(findSituacaoOSCbx.selectedItem.valor1 == findSituacaoOSCbx.selectedItem.valor2 ){
+//							col1findSituacaoOS = findSituacaoOSCbx.selectedItem.valor1;
+//							col2findSituacaoOS = null;
+//							serviceController.findSituacaoOSFaturamento(col1findSituacaoOS, 'EXT');
+//						}else{
+//							col1findSituacaoOS = findSituacaoOSCbx.selectedItem.valor1;
+//							col2findSituacaoOS = findSituacaoOSCbx.selectedItem.valor2;
+//							
+//							serviceController.findSituacaoOS(col1findSituacaoOS,col2findSituacaoOS, 'EXT');
+//						}
+//					}else{
+//						col1findSituacaoOS = findSituacaoOSCbx.selectedItem.valor1;
+//						col2findSituacaoOS = null;
+//						var beanObj:CheckinBean = new CheckinBean();
+//						beanObj.tipoCliente = "EXT";
+//						serviceController.findSituacaoOSObj(col1findSituacaoOS, beanObj);
+//					}
+				}else{
+					cheGrid.dataProvider = null;
+				}
+				
+			}
+			}
+			private function onResultFindSituacaoOS(event:ResultEvent):void{
+				cheGrid.dataProvider = null;
+				cheGrid.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+						private function onResultFindSituacaoOSFaturamento(event:ResultEvent):void{
+							cheGrid.dataProvider = null;
+							cheGrid.dataProvider = ArrayCollection(event.result);
+							serviceController.getUrlReport();
+						}
+						
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			//	serviceController.findAllJobControl();
+			}
+			
+//			private function onResultFindAllJobControl(event:ResultEvent):void{
+//				if(event.result != null){
+//					jobControlCbx.dataProvider = ArrayCollection (event.result);
+//					serviceController.findJobControlBySiglaSistema();
+//				}				
+//			}
+			
+//			private function onResultFindJobControlBySiglaSistema(event:ResultEvent):void{
+//				if(event.result != null){
+//					var jobControlList:ArrayCollection = ArrayCollection(jobControlCbx.dataProvider);
+//					for(var i:int=0; i < jobControlList.length; i++){
+//						var job:JobControlBean = JobControlBean(jobControlList.getItemAt(i));
+//						if(job.descricao == String (event.result)){
+//							jobControlCbx.selectedIndex = i;
+//							break;
+//						}
+//					}
+//				}
+//			}
+			
+			//			private function onResultSaveDataOrcamento(event:ResultEvent):void{
+			//				var array:Array = String(event.result).split("-"); 
+			//				if (array.length == 1){
+			//					Alert.show(String(event.result), "Alerta");	
+			//					CheckinBean(cheGrid.selectedItem).hasSendDataOrcamento = 'S'; 					
+			//					var arrayAux:ArrayCollection = ArrayCollection(cheGrid.dataProvider);
+			//					cheGrid.dataProvider = null;
+			//					cheGrid.dataProvider = arrayAux;
+			//				}else{
+			//					Alert.show(array[0], "Alerta");
+			//				}
+			//				serviceController.findAllChekin('');	
+			//			}			
+//			private function onResultSaveDataNegociacao(event:ResultEvent):void{
+//				var array:Array = String(event.result).split("-"); 
+//				if (array.length == 1){
+//					Alert.show(String(event.result), "Alerta");
+//					
+//					serviceController.findAllChekinConsultor('');						
+//				}else{
+//					Alert.show(array[0], "Alerta");
+//				}
+//			}
+			
+			//			private function onResultSaveDataConclusao(event:ResultEvent):void{
+			//				if(event.result != false){
+			//					Alert.show("Data salva com sucesso", "Alerta");	
+			//					serviceController.findAllChekin('');	
+			//				}else{
+			//					Alert.show("Ocorreu um erro ao tentar salvar a data","Alerta");
+			//				}
+			//			}
+			//			private function onResultVerificarAprovacaoProposta(event:ResultEvent):void{
+			//				if(event.result == null){
+			//					servicoTerceirosPopup(null);
+			//				}else{
+			//					Alert.show(String(event.result),"Alerta");
+			//				}
+			//			}
+
+//			protected function JobControlCbx_changeHandler(event:ListEvent):void
+//			{
+//					
+//				serviceController.findAllChekinByJobControlCbx(campoPesquisa.text, JobControlBean(jobControlCbx.selectedItem).descricao);
+//			}
+//			
+//			private function onResultFindAllChekinByJobControlCbx(event:ResultEvent):void{
+//				cheGrid.dataProvider = null;
+//				cheGrid.dataProvider = ArrayCollection(event.result);
+//			}
+			
+			private function onResultFindAllChekin(event:ResultEvent):void{
+				cheGrid.dataProvider = null;
+				cheGrid.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="findSituacaoOS">
+		
+		<mx:Object label="Selecione" valor="-1"/>
+		<mx:Object label="Todas" valor="TODAS"/>
+		<!--mx:Object label="O.S Iniciada" valor1="s.dataChegada" valor2="s.dataEntregaPedidos"/>
+		<mx:Object label="O.S Entrega de Pedidos" valor1="s.dataEntregaPedidos" valor2="s.dataOrcamento"/>
+		<mx:Object label="O.S em Orçamento" valor1="s.dataOrcamento" valor2="s.dataAprovacao"/>
+		<mx:Object label="O.S Aprovada" valor1="s.dataAprovacao" valor2="s.dataPrevisaoEntrega"/>
+		<mx:Object label="O.S com Previsão de Entrega" valor1="s.dataPrevisaoEntrega" valor2="s.dataTerminoServico"/>
+		<mx:Object label="O.S Concluída" valor1="s.dataTerminoServico" valor2="s.dataFaturamento"/>
+		<mx:Object label="O.S Faturada" valor1="s.dataFaturamento" valor2="s.dataFaturamento"/>
+		<mx:Object label="O.S com Checkin" valor1="'S'" valor2="isCheckIn"/>
+		<mx:Object label="O.S sem Checkin" valor1="'N'" valor2="isCheckIn"/>
+		<mx:Object label="O.S Rejeitadas pelo consultor" valor1="R" valor2="isCheckIn"/-->
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllChekinConsultor" result="onResultFindAllChekinConsultor(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllChekinByJobControlCbx" result="onResultFindAllChekinByJobControlCbx(event);ProgressBarHelper.removeProgressBar()" /-->
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="liberarOSParaDigitador" result="onResultLiberarOSParaDigitador(event);ProgressBarHelper.removeProgressBar()" />		
+		<!--mx:method name="findAllJobControl" result="onResultFindAllJobControl(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findJobControlBySiglaSistema" result="onResultFindJobControlBySiglaSistema(event);ProgressBarHelper.removeProgressBar()"/-->
+		<mx:method name="findSituacaoOS" result="onResultFindSituacaoOS(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findSituacaoOSObj" result="onResultFindSituacaoOS(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConsultorGaosChekin" result="onResultFindAllChekin(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="verificarAprovacaoProposta" result="onResultVerificarAprovacaoProposta(event);ProgressBarHelper.removeProgressBar()" /-->
+		<mx:method name="findSituacaoOSFaturamento" result="onResultFindSituacaoOSFaturamento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificaPendeciasPecas" result="onResultVerificaPendeciasPecas(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="saveDataOrcamento" result="onResultSaveDataOrcamento(event);ProgressBarHelper.removeProgressBar()" /-->
+	</mx:RemoteObject>
+	
+	<mx:VBox height="100%" width="100%" horizontalAlign="center">
+		<mx:ApplicationControlBar height="50"  width="100%" horizontalAlign="center">
+			<mx:Label text="Check-in Equipamento" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:HBox width="100%">
+			
+			<mx:Label text="Pesquisar:"/>
+			<mx:TextInput width="92" id="campoPesquisa" toolTip="Digite: Modelo, Série, Cliente ou Número OS para fazer uma pesquisa." />
+			
+			
+			<!--mx:Label text="Job Control:"/>
+			<mx:ComboBox id="jobControlCbx" change="JobControlCbx_changeHandler(event)" prompt="Selecione" labelField="descricao" toolTip="Busca pelos: campos de pesquisa e Job Control informado."></mx:ComboBox-->
+			<mx:Button label="Pesquisar" click="filtroCheckin()" toolTip="Busca pelos: campos de pesquisa e Job Control informado."/>
+			<mx:Label text="Pesquisar pela situação:"/>
+			<mx:ComboBox dataProvider="{findSituacaoOS}" id="findSituacaoOSCbx" change="changeComboSituacaoOS()" prompt="Selecione" labelField="label"></mx:ComboBox>
+						
+		</mx:HBox>	
+		
+		<mx:DataGrid width="100%" id="cheGrid" height="100%" doubleClickEnabled="true" doubleClick="doubleClickGrid()">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Docto." textAlign="center" dataField="id" width="50"/>				
+				<mx:DataGridColumn headerText="Status" textAlign="center" width="50">				
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox horizontalAlign="center">
+								<mx:Image horizontalAlign="center" width="15" height="15" source="{data.nomeImagemStatus}"/>
+							</mx:HBox>
+						</mx:Component>                            
+					</mx:itemRenderer> 				
+				</mx:DataGridColumn>				
+				
+				<mx:DataGridColumn headerText="Data" dataField="data" textAlign="center" width="130"/>
+				<mx:DataGridColumn headerText="Tipo &#13;Cliente" dataField="tipoCliente" textAlign="center" width="45"/>
+				<mx:DataGridColumn headerText="Numero &#13;OS" dataField="numeroOs" textAlign="center" width="80"/>
+				<mx:DataGridColumn headerText="Cliente" dataField="cliente" textAlign="center" width="200"/>
+				<!--mx:DataGridColumn headerText="Note &#13; CRM" dataField="obsCrm"/>
+				<mx:DataGridColumn headerText="Status &#13; CRM" dataField="statusCrm"/-->
+				<mx:DataGridColumn headerText="Modelo" dataField="modelo" textAlign="center" width="80"/>
+				<mx:DataGridColumn headerText="Série" dataField="serie" textAlign="center" width="90"/>
+				<mx:DataGridColumn headerText="Job &#13;Control" dataField="jobControl" textAlign="center" width="50"/>
+				<mx:DataGridColumn headerText="ID &#13;Equipamento" dataField="idEquipamento" textAlign="center" width="80"/>
+				<mx:DataGridColumn headerText="Anexos" textAlign="center" width="70">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/camera.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: anexar fotos a os." click="{dispatchEvent(new Event('FOTO', true))}"/>
+								<mx:Image source="img/anexo.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: anexar um arquivo a OS." click="{dispatchEvent(new Event('ARQUIVO', true))}"/>
+							</mx:HBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<!--mx:DataGridColumn headerText="Segmentar OS" textAlign="center">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/detailed.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: segmentar a os selecionada." click="{dispatchEvent(new Event('SEGMENTAROS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				<mx:DataGridColumn headerText="Imprimir &#13;Relatório" textAlign="center" width="70">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/contrato.png"  width="15" buttonMode="true"  toolTip="Imprimir Relatório" height="15" click="{dispatchEvent(new Event('IMPRIMERELATORIO', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Observação" textAlign="center" width="75">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/edit.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: incluir/visualizar observação da OS." click="{dispatchEvent(new Event('OBS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Consultar &#13;Datas" textAlign="center" width="70">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/datasOS.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: visualizar o fluxo de data da OS." click="{dispatchEvent(new Event('DATASOS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Liberar OS" textAlign="center" id="columnLiberarOS" width="70">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/confirm.png" width="15" buttonMode="true" height="15"  toolTip="Clique para: liberar a os selecionada." visible="{((data.statusNegociacaoConsultor == 'P' || data.statusNegociacaoConsultor == 'R' || data.statusNegociacaoConsultor == 'A') || data.isLiberadoPConsultor == 'N')?false:true}" click="{dispatchEvent(new Event('LIBERAROS', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</mx:Canvas>

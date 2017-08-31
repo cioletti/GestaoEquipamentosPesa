@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Solicitar Criação OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="536" height="420">
+	<mx:Script>
+		<![CDATA[
+			import bean.ClienteBean;
+			import bean.ClienteInterBean;
+			import bean.FilialBean;
+			import bean.GeFormularioAprovacaoOsBean;
+			import bean.UsuarioBean;
+			
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import util.ProgressBarHelper;
+
+
+			private var urlLogin:String;
+			public var usuarioBean:UsuarioBean;
+			private var nomeCliente:String;
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;
+				serviceController.findAllFilial();
+				serviceController.findAllClienteInter();
+				
+			}
+			
+			
+			private function onResultFindDataNomeCliente(event:ResultEvent):void{
+				this.popupCliente(ArrayCollection(event.result));
+			}
+			
+			[Bindable]
+			private var cliente:Cliente = new Cliente();
+			public function popupCliente(clienteList:ArrayCollection):void{
+				
+				cliente.addEventListener(CloseEvent.CLOSE, removePopUpCliente);
+				PopUpManager.addPopUp(cliente,this,true);
+				PopUpManager.centerPopUp(cliente)
+				//cliente.percentWidth = 400;
+				//cliente.percentHeight = 300;
+				cliente.init(clienteList);
+				
+				
+			}
+			
+			private function removePopUpCliente(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if((cliente.gridClientes.selectedItem != null && ClienteBean(cliente.gridClientes.selectedItem).FLAGDELETE == 'N')) {
+					codigoCliente.text = (ClienteBean(cliente.gridClientes.selectedItem)).CLCHAVE;
+					nomeCliente = (ClienteBean(cliente.gridClientes.selectedItem)).RAZSOC;
+				}
+				
+			}
+			
+			
+			private function onResultFindAllClienteInter(event:ResultEvent):void{
+				clienteInterCbx.dataProvider = ArrayCollection(event.result); 
+			}
+			
+			private function findCliente():void{
+				if(clienteText.text == ""){
+					Alert.show("O campo de cliente deve ser preenchido!");
+					return;
+				}
+				if(answers.selection.id == "codigo"){
+					serviceController.findDataCliente(clienteText.text);
+				}else{
+					serviceController.findDataNomeCliente(clienteText.text);
+				}
+				
+			}
+			
+			private function onResultFindDataCliente(event:ResultEvent):void{
+				if((event.result as ClienteBean).msg != null){
+					Alert.show((event.result as ClienteBean).msg, "Alerta");
+					return;
+				}
+				codigoCliente.text =  (event.result as ClienteBean).CLCHAVE;
+				nomeCliente = (event.result as ClienteBean).RAZSOC;
+				
+			}
+			
+			protected function tipoClienteCbx_changeHandler(event:ListEvent):void
+			{
+				if(tipoClienteCbx.selectedItem != null){
+					if(tipoClienteCbx.selectedItem.valor == 'INT'){
+						labelClienteInter.includeInLayout = true;
+						labelClienteInter.visible = true;
+						filialInter.visible = true;
+						filialInter.includeInLayout = true;
+						formDeslocamento.visible = false;
+						formDeslocamento.includeInLayout = false;
+						formBuscarCliente.visible = false;
+						formBuscarCliente.includeInLayout = false;
+						formCodigoCliente.visible = false;
+						formCodigoCliente.includeInLayout = false;
+						
+					}else{
+						formCodigoCliente.visible = true;
+						formCodigoCliente.includeInLayout = true;
+						labelClienteInter.includeInLayout = false;
+						labelClienteInter.visible = false;
+						formDeslocamento.visible = true;
+						formDeslocamento.includeInLayout = true;
+						formBuscarCliente.visible = true;
+						formBuscarCliente.includeInLayout = true;
+						filialInter.visible = false;
+						filialInter.includeInLayout = false;
+					}
+				}
+			}
+
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(tipoClienteCbx.selectedIndex == -1 || tipoSistemaCbx.selectedIndex == -1){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				if(maquinaParouCbx.selectedIndex == -1){
+					Alert.show("O campo informando se a máquina parou é obrigatório!", "Alerta");
+					return;
+				}
+				if(tipoClienteCbx.selectedItem.valor == 'INT' && clienteInterCbx.selectedIndex == -1){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				
+				if(tipoClienteCbx.selectedItem.valor == 'INT' && (filialCbx.selectedIndex == -1)){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				
+				if(tipoClienteCbx.selectedItem.valor == 'EXT' && codigoCliente.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				if(filialCriarOsCbx.selectedIndex == -1){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				
+				if(tipoClienteCbx.selectedItem.valor == 'INT' && filialCbx.selectedIndex != -1 && FilialBean(filialCbx.selectedItem).stno != 0 && clienteInterCbx.selectedItem.customerNum == '09XX297'){
+					Alert.show("Para esse cliente só pode ser aberto para filial de curitiba!", "Alerta");
+					return;
+				}
+				
+				var filialCriacaoOS:String = FilialBean(filialCriarOsCbx.selectedItem).stnm;
+				
+				var filialInter:String;
+				if(tipoClienteCbx.selectedItem.valor == 'INT'){
+					var filial:FilialBean = FilialBean(filialCbx.selectedItem);
+					if(filial.stno < 10){
+						filialInter = '0'+String(filial.stno);
+					}else{
+						filialInter = String(filial.stno);
+					}
+				}
+				
+				//09XX235, 09XX242,09XX294, 09XX241,09XX234
+			
+				//Garantia perfil garantia
+				if(tipoClienteCbx.selectedItem.valor == 'INT' && "09XX028,09XX026,09XX023,09XX463,09XX243,09XX247,09XX288,09XX249,09XX267,09XX268,09XX025,09XX295,09XX468,09XX469".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+					var popUpAprovarOs:FormularioGarantia = new FormularioGarantia();				
+					popUpAprovarOs.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+					PopUpManager.addPopUp(popUpAprovarOs, this, true);
+					//PopUpManager.centerPopUp(popUpAprovarOs);
+					popUpAprovarOs.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), clienteInterCbx.selectedItem.descricao, tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, filialInter, this.maquinaParouCbx.selectedItem.sigla);
+				} else 
+				//Concessão perfil aprovado interno concessao
+				if(tipoClienteCbx.selectedItem.valor == 'INT' && "09XX344,09XX472,09XX244,09XX464,09XX024".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+					var popUpFormConOs:FormularioConcessao = new FormularioConcessao();				
+					popUpFormConOs.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+					PopUpManager.addPopUp(popUpFormConOs, this, true);
+					//PopUpManager.centerPopUp(popUpFormConOs);
+					popUpFormConOs.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), clienteInterCbx.selectedItem.descricao, tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla);
+				} else if (tipoClienteCbx.selectedItem.valor == 'INT' && "09XX292,09XX304,09XX629,09XX297,09XX300".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+					var popUpFormRent:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+					popUpFormRent.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+					PopUpManager.addPopUp(popUpFormRent, this, true);
+					//PopUpManager.centerPopUp(popUpFormRent);
+					popUpFormRent.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), clienteInterCbx.selectedItem.descricao, 'R', tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla);
+				}else if (tipoClienteCbx.selectedItem.valor == 'INT' && "09XX235,09XX242,09XX294,09XX241,09XX234".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+					var popUpFormExt:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+					popUpFormExt.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+					PopUpManager.addPopUp(popUpFormExt, this, true);
+					//PopUpManager.centerPopUp(popUpFormExt);
+					popUpFormExt.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), ClienteInterBean(clienteInterCbx.selectedItem).descricao, 'GG', tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla);
+				}else if (tipoClienteCbx.selectedItem.valor == 'INT' && "09XX102,09XX280,09XX486,09XX410,09XX021,09XX245,09XX246,09XX290,09XX411,09XX030,09XX020,09XX240,09XX250,09XX285,09XX401,09XX460,09XX461,09XX462,09XX465,09XX466,09XX467,09XX470,09XX488,09XX490,09XX930,09XX103,09XX104".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+					var popUpFormExt:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+					popUpFormExt.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+					PopUpManager.addPopUp(popUpFormExt, this, true);
+					//PopUpManager.centerPopUp(popUpFormExt);
+					popUpFormExt.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), ClienteInterBean(clienteInterCbx.selectedItem).descricao, 'CC', tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla);
+				}else if (tipoClienteCbx.selectedItem.valor == 'INT' && "09XX209,09XX291,09XX293,09XX254,09XX298,09XX305,09XX027".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+					if("09XX291,09XX293".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+						var popUpFormExt:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+						popUpFormExt.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+						PopUpManager.addPopUp(popUpFormExt, this, true);
+						//PopUpManager.centerPopUp(popUpFormExt);
+						popUpFormExt.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), ClienteInterBean(clienteInterCbx.selectedItem).descricao, 'AG', tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla);
+					}
+					if("09XX209,09XX254,09XX298,09XX305,09XX027".indexOf(clienteInterCbx.selectedItem.customerNum) >= 0){
+						var popUpFormGarMaqExt:FormularioGarantiaMaquinaUsada = new FormularioGarantiaMaquinaUsada();				
+						popUpFormGarMaqExt.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+						PopUpManager.addPopUp(popUpFormGarMaqExt, this, true);
+						//PopUpManager.centerPopUp(popUpFormExt);
+						//popUpFormGarMaqExt.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), ClienteInterBean(clienteInterCbx.selectedItem).descricao, 'AG', tipoSistemaCbx.selectedItem.valor, filialCriacaoOS);
+						popUpFormGarMaqExt.init(urlLogin,this.usuarioBean, String(clienteInterCbx.selectedItem.customerNum).replace('XX', filialInter), clienteInterCbx.selectedItem.descricao, tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla, 'AGU');
+					}
+				}else {
+					var cliAuxInter:String = codigoCliente.text.substring(0,2);
+					var cliAux:String = codigoCliente.text.substring(4,String(codigoCliente.text).length);
+					var cliente:String = cliAuxInter+"XX"+cliAux;
+					if("09XX027,09XX291,09XX293,09XX209,09XX254,09XX102,09XX280,09XX486,09XX410,09XX021,09XX245,09XX246,09XX291,09XX290,09XX411,09XX030,09XX020,09XX240,09XX250,09XX285,09XX401,09XX460,09XX461,09XX462,09XX465,09XX466,09XX467,09XX470,09XX488,09XX490,09XX930,09XX298,09XX103,09XX104,09XX235,09XX242,09XX294,09XX241,09XX234,09XX292,09XX304,09XX629,09XX297,09XX300,09XX344,09XX472,09XX244,09XX464,09XX024,09XX023,09XX463,09XX243,09XX247,09XX288,09XX249,09XX267,09XX268,09XX025,09XX295,09XX468,09XX469".indexOf(cliente) < 0){
+						var popUpFormExt:FormularioClienteExternoRental = new FormularioClienteExternoRental();				
+						popUpFormExt.addEventListener(CloseEvent.CLOSE, removeoAprovarPopUp);
+						PopUpManager.addPopUp(popUpFormExt, this, true);
+						//PopUpManager.centerPopUp(popUpFormExt);
+						popUpFormExt.init(urlLogin,this.usuarioBean, codigoCliente.text, nomeCliente, 'E', tipoSistemaCbx.selectedItem.valor, filialCriacaoOS, this.maquinaParouCbx.selectedItem.sigla);
+					}else{
+						Alert.show("O código de cliente interno não pode ser usado para um tipo de cliente externo!", "Alerta");
+					}
+				}
+				
+			}
+			
+			private function removeoAprovarPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				this.close();
+			}
+			
+			
+			private function onResultFindAllFilial(event:ResultEvent):void{
+				filialCbx.dataProvider = ArrayCollection(event.result);
+				filialCriarOsCbx.dataProvider = ArrayCollection(event.result);
+			} 
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="maquinaParouColl">
+		<mx:Object label="Não" sigla="N"/>
+		<mx:Object label="Sim" sigla="S"/>
+		
+	</mx:ArrayCollection> 
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllClienteInter" result="onResultFindAllClienteInter(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findDataCliente" result="onResultFindDataCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findDataNomeCliente" result="onResultFindDataNomeCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFilial" result="onResultFindAllFilial(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	
+	<mx:ArrayCollection id="tipoClienteColl">
+		<mx:Object label="Cliente Externo" valor="EXT"/>
+		<mx:Object label="Cliente Interno" valor="INT"/>
+	</mx:ArrayCollection>
+	<mx:ArrayCollection id="tipoSistemaColl">
+		<mx:Object label="Oficina" valor="OFI"/>
+		<mx:Object label="Campo" valor="CAM"/>
+	</mx:ArrayCollection>
+	<mx:Box x="74.5" y="10" height="100%" horizontalAlign="center">
+		<mx:Form>
+	<mx:FormItem label="Sistema" id="labelSistema" visible="true" includeInLayout="true">
+		<mx:ComboBox id="tipoSistemaCbx" dataProvider="{tipoSistemaColl}" labelField="label" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+	</mx:FormItem>
+	<mx:FormItem label="Máquina Parou">
+		<mx:ComboBox prompt="Selecione" dataProvider="{maquinaParouColl}" id="maquinaParouCbx" labelField="label"></mx:ComboBox>
+	</mx:FormItem>
+	<mx:FormItem label="Tipo de Cliente" id="labelTipoCliente" visible="true" includeInLayout="true">
+		<mx:ComboBox dataProvider="{tipoClienteColl}"  id="tipoClienteCbx" prompt="Selecione" labelField="label" change="tipoClienteCbx_changeHandler(event)"></mx:ComboBox>
+	</mx:FormItem>
+	<mx:FormItem label="Cilente Inter" id="labelClienteInter" visible="false" includeInLayout="false">
+		<mx:ComboBox id="clienteInterCbx" labelField="descricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+	</mx:FormItem>
+	<mx:FormItem label="Filial" id="filialInter" visible="false" includeInLayout="false">
+			<mx:ComboBox editable="true" id="filialCbx" labelField="stnm" prompt="Selecione"></mx:ComboBox>
+	</mx:FormItem>
+	<mx:FormItem label="Filial Criação OS" id="filialCriarOS" visible="true" includeInLayout="true">
+		<mx:ComboBox editable="true" id="filialCriarOsCbx" labelField="stnm" prompt="Selecione"></mx:ComboBox>
+	</mx:FormItem>
+	</mx:Form>
+	<mx:Form id="formDeslocamento" visible="false" includeInLayout="false">
+		<mx:FormItem id="formCodigoCliente" label="Código Cliente" required="true" width="316" >
+			<mx:TextInput id="codigoCliente" width="141" enabled="false" maxChars="20" restrict="0-9"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:FormItem id="formBuscarCliente" label="Buscar Cliente" horizontalAlign="center"  borderStyle="solid" cornerRadius="5" borderColor="#FFCC33" visible="false" includeInLayout="false" x="107" y="101">
+		<mx:HBox verticalAlign="middle">
+			<mx:VBox>
+				<mx:RadioButtonGroup id="answers" />
+				<mx:RadioButton group="{answers}" id="codigo" label="Código" selected="true"/>
+				<mx:RadioButton group="{answers}" id="nome" label="Nome"/>
+			</mx:VBox>
+			<mx:VBox horizontalAlign="center">
+				<mx:TextInput id="clienteText" width="122"/>
+				<mx:Button label="Buscar" click="findCliente()"/>
+			</mx:VBox>
+		</mx:HBox>	
+	</mx:FormItem>
+	<mx:Button label="Continuar" click="button1_clickHandler(event)"/>
+	</mx:Box>
+</util:ModuleTitleWindow>

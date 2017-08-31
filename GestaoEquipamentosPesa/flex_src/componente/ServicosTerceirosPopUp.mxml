@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Serviços de Terceiros" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300" xmlns:control="br.com.thinklab.util.control.*">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var idCheckin:Number;			
+			private var urlReport:String;
+			public function init(urlLogin:String, idCheckin:Number):void{
+				this.urlLogin = urlLogin;
+				this.idCheckin = idCheckin;
+				serviceController.findServicosTerceiros(idCheckin);
+			}
+			private function saveServicosTerceiros():void{
+				if(valorInterText.text != null){
+					serviceController.saveValorServcoTerceiros(valorInterText.text,idCheckin);
+				}else{
+					Alert.show("O campo Serviços de Terceiros é obrigatório", "Alerta!");
+				}	
+			}
+			
+			private function onResultFindServicosTerceiros(event:ResultEvent):void{
+				if(event.result != null){
+					valorInterText.text = String(event.result);				
+				}
+				serviceController.getUrlReport();
+			}
+			private function onResultSaveValorServcoTerceiros(event:ResultEvent):void{
+				if(event.result == true){
+					gerarRelatorio();				
+				}else{
+					Alert.show("Ocorreu um erro ao tentar salvar o valor!", "Alerta!");
+				}
+			}
+			private function gerarRelatorio():void{
+				var uv:URLVariables = new URLVariables();
+				uv.idChechIn = idCheckin;					
+				
+				var url:URLRequest = new URLRequest(urlReport+"/PropostaManutencao");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				this.close();
+			}		
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="saveValorServcoTerceiros" result="onResultSaveValorServcoTerceiros(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findServicosTerceiros" result="onResultFindServicosTerceiros(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="62" width="100%" horizontalAlign="center" height="97">
+		<mx:Form width="310" height="78">		
+			
+			<mx:FormItem label="Serviços de Terceiros" required="true" width="265">
+				<control:DecimalInput editable="true"  id="valorInterText" width="93" maxChars="30"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>			
+			</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	<mx:HBox x="0" y="170" horizontalAlign="center" width="100%" height="25">
+		<mx:Button label="Salvar e gerar orçamento" click="saveServicosTerceiros()" />	
+	</mx:HBox>	
+	
+</util:ModuleTitleWindow>

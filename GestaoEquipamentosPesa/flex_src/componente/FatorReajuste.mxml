@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.FatorBean;
+			import bean.FatorReajusteBean;
+			
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var myValidators: Array;
+			[Bindable]
+			private var fatorBean:FatorReajusteBean = new FatorReajusteBean(); 
+			
+			public function init(urlLogin:String): void{
+				this.urlLogin = urlLogin;				
+				myValidators = new Array();
+				myValidators.push(campoInter);
+				myValidators.push(campoUrgencia);
+				serviceController.findAllFatorReajuste();
+				
+			}
+			private function onResultFindAllFator(event:ResultEvent):void{
+				fatorBean = FatorReajusteBean(event.result);
+				dataText.text = fatorBean.data;
+				fatorReajusteText.text = fatorBean.fatorAjuste;
+			}
+			
+			private function salvarFator():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					fatorBean.data = dataText.text;
+					fatorBean.fatorAjuste = fatorReajusteText.text;
+					serviceController.salvarFatorReajuste(fatorBean);
+					
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}				
+			}
+			private function onResultSalvarFator(event:ResultEvent):void{
+				if (event.result != null){
+					fatorBean = FatorReajusteBean(event.result);
+					Alert.show("Fator salvo com sucesso!", "Alerta");
+				}else{
+					Alert.show("Ocorreu um erro ao salvar Fator!", "Alerta");
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:StringValidator id="campoInter" requiredFieldError="Este campo é obrigatório!" required="true" source="{dataText}" property="text" />
+	<mx:StringValidator id="campoUrgencia" requiredFieldError="Este campo é obrigatório!" required="true" source="{fatorReajusteText}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="salvarFatorReajuste" result="onResultSalvarFator(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllFatorReajuste" result="onResultFindAllFator(event);ProgressBarHelper.removeProgressBar()"/>
+		
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Fator" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="62" width="100%" horizontalAlign="center" height="97">
+		<mx:HBox width="100%" horizontalAlign="center" height="89">
+			<mx:Form width="332" height="100%">
+				
+				<mx:FormItem label="Data Fator Reajuste" required="true" width="265">
+					<mx:TextInput id="dataText"  width="92" editable="false"/>
+					
+				</mx:FormItem>
+				<mx:FormItem label="Fator de Reajuste" required="true" width="265">
+					<control:DecimalInput editable="true"  id="fatorReajusteText" width="93" maxChars="6"  precision="2" currencyFormat="us" useThousandsSeparator="true"/>							
+				</mx:FormItem>				
+			</mx:Form>
+		</mx:HBox>
+	</mx:HBox>
+	<mx:HBox x="10" y="176" horizontalAlign="center" width="100%" height="25">
+		<mx:Button label="Salvar" click="salvarFator()" height="20" x="667" y="210"/>		
+	</mx:HBox >
+	
+</mx:Canvas>

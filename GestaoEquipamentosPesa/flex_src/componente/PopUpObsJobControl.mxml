@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Observação Job Control" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="250">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var isSave:Boolean = false;
+			public var segmento:SegmentoBean;
+			
+			public function init(urlLogin:String, segmento:SegmentoBean):void{
+				this.segmento = segmento;
+				if(this.segmento.descricaojobControl != null){
+					obsTxt.text = this.segmento.descricaojobControl;
+				}
+				this.urlLogin = urlLogin;
+			}
+			private function saveObsOS():void{
+				if(obsTxt.text != ""){
+					isSave = true;
+					this.close();
+				}else{
+					Alert.show("O campo de observação é obrigatório.", "Alerta!");
+				}
+			}
+			
+
+			
+		]]>
+	</mx:Script>
+	
+	<mx:TextArea id="obsTxt"  width="324" height="161" x="28" y="10" maxChars="100"/>
+	<mx:Button  x="159" y="179" label="Salvar" click="saveObsOS()" />	
+	
+</util:ModuleTitleWindow>

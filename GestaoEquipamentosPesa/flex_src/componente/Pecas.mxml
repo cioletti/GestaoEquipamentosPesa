@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Peças" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="928" height="384">
+	<mx:Script>
+		<![CDATA[
+			import bean.BibliografiaBean;
+			import bean.CheckinBean;
+			import bean.GeDocSegOperBean;
+			import bean.OperacaoBean;
+			import bean.PecasBean;
+			import bean.SegmentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var bib: BibliografiaBean = new BibliografiaBean();
+			
+			private var urlLogin:String;
+			private var idSegmento:Number;
+			private var filtro:FileFilter = new FileFilter("Selecione o XML(*.xml;)", "*.xml;");
+			private var uploadFile: FileReference;
+			public var verificarpecas:GeDocSegOperBean;
+			private var hasSendDbs:String;
+			private var pecas:PecasBean = new PecasBean();
+			private var usuarioBean:UsuarioBean;
+			private var idDocSeoper:Number;
+			private var checkInObj:CheckinBean = new CheckinBean();
+			private var segmentoBean:SegmentoBean = new SegmentoBean();
+			private var ultimoItem:String = "";
+			private var popUpPesquisarFuncionario:PopUpFuncionario;
+			public var isSave:Boolean = false;
+			
+			public function init(urlLogin:String, idSegmento:Number, hasSendDbs:String, hasSendPecasDbsSegmento:String, checkInObj:CheckinBean, _usuarioBean:UsuarioBean, segmentoBean:SegmentoBean):void{
+				serviceController.getUrlReport();
+				this.urlLogin = urlLogin;
+				pecasGrid.addEventListener("EXCLUIRPECAS", removerPeca);
+				this.idSegmento = idSegmento;
+				this.hasSendDbs = hasSendDbs;
+				this.usuarioBean = _usuarioBean;
+				carregarOperacoesCbx();
+				reevPecas.includeInLayout = true;
+				removerPecasButton.includeInLayout = false;
+				removerPecasButton.enabled = false;
+				this.checkInObj = checkInObj;
+				this.segmentoBean = segmentoBean;
+				//funcionarioPecas.text = segmentoBean.nomeFuncionarioPecas;
+				//serviceController.findSegmentoBy(idSegmento);
+				
+				if(hasSendPecasDbsSegmento != null && hasSendPecasDbsSegmento == "S"){
+					importar.enabled = false;
+					reevPecas.includeInLayout = false;
+					removerPecasButton.includeInLayout = false;
+					//pecasGrid.removeEventListener("EXCLUIRPECAS", removerPeca);
+				}
+				if(isNaN(idSegmento)){
+					reevPecas.includeInLayout = false;
+					removerPecasButton.includeInLayout = false;
+					importar.enabled = false;
+					adicionarBtn.enabled = false;
+					pecasGrid.removeEventListener("EXCLUIRPECAS", removerPeca);
+				}
+				if(this.usuarioBean.siglaPerfil == 'CONS'){
+					adicionarBtn.visible = false;
+					importar.visible = false;
+					removerPecasButton.visible = false;
+					reevPecas.visible = false;
+					columnExcluir.visible = false;
+				}
+				
+				if(checkInObj.statusNegociacaoConsultor == 'A' || checkInObj.statusNegociacaoConsultor == 'R'){
+					adicionarBtn.visible = false;
+					removerPecasButton.enabled = false;
+					removerPecasButton.includeInLayout = false;
+					importar.enabled = false;
+				}
+				serviceController.findIdDocSegOper(idSegmento);
+			}
+			public function init2 (urlLogin:String, verificarpecas:GeDocSegOperBean, idSegmento:Number, usuarioBean:UsuarioBean):void{
+				removerPecasButton.includeInLayout = true;
+				removerPecasButton.enabled = true;
+				reevPecas.includeInLayout = true;
+				reevPecas.enabled = true;
+				pecasGrid.addEventListener("EXCLUIRPECAS", removerPecaButton);
+				this.urlLogin = urlLogin;
+				this.verificarpecas = verificarpecas;
+				operForm.visible = false;
+				operForm.includeInLayout = false
+				carregarOperacoesCbx ();
+				this.idSegmento = idSegmento;
+				this.idDocSeoper = verificarpecas.id;
+				this.usuarioBean = usuarioBean;
+				serviceController.findSegmentoBy(idSegmento);
+				//this.segmentoBean.id = idSegmento;
+				//funcionarioPecas.text = this.segmentoBean.nomeFuncionarioPecas;
+			}
+			private function onResultFindSegmentoBy(event:ResultEvent):void{
+				if(event.result != null){
+					this.segmentoBean = SegmentoBean(event.result);
+					funcionarioPecas.text = segmentoBean.nomeFuncionarioPecas;
+				}
+			}			
+			
+			private function removerPecaButton(ev: Event): void{
+				reevPecas.includeInLayout = true;
+				reevPecas.enabled = true;
+				removerPecasButton.includeInLayout = true;
+				removerPecasButton.enabled = true;
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			private function adicionarArquivo():void {
+				/* Inicializa o FileReference a adicinar os Listeners */				
+				if(funcionarioPecas.text == ""){
+					Alert.show("Por favor adicione um funcionário responsável","Alerta");
+					return;					
+				}
+				
+				if(list.length > 0){
+					if(operCbx.selectedIndex == -1){
+						Alert.show("Selecione uma Operação!","Alerta");
+						return;
+					}
+				}
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivo);
+			}
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			private function tratarArquivo(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				var idOperacao:Number = 0;
+				var idDocSegOper:Number = 0;
+				if(operCbx.selectedItem != null){
+					idOperacao = OperacaoBean(operCbx.selectedItem).id;
+				}else if(verificarpecas != null){
+					idOperacao = verificarpecas.idOperacao;					
+					idSegmento = verificarpecas.idSegmento;	
+					idDocSegOper = verificarpecas.id;
+				}
+				if(pecasGrid.dataProvider != null && ArrayCollection(pecasGrid.dataProvider).length > 0){
+					idDocSegOper = PecasBean(ArrayCollection(pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;
+				}
+				
+				serviceController.fazerUpload(data, idSegmento, idOperacao, idDocSegOper);
+			}
+			private function uploadSucesso(event:ResultEvent):void {
+				if(event.result != null){
+					Alert.show("Peças salva com sucesso!", "Sucesso");
+					serviceController.saveResponsavelPecas(segmentoBean);
+					serviceController.findAllPecas(Number(event.result));
+					removerPecasButton.includeInLayout = true;
+					removerPecasButton.enabled = true;
+					this.idDocSeoper = Number (event.result);
+					
+				}else{
+					Alert.show("Não foi possível salvar as peças!", "Sucesso");
+				}if (verificarpecas != null){
+					reevPecas.enabled = true;
+				}
+			}
+			
+			private function onResultSaveResponsavelPecas(event:ResultEvent):void{
+				if (event.result == false){
+					Alert.show("Ocorreu um erro ao salvar o responsável por incluir as peças!", "Erro");
+					return;
+				}
+				funcionarioPecas.text = segmentoBean.nomeFuncionarioPecas;
+			}
+			
+			private function removerPeca(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			private function removerTodasPecas(): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar todas as pecas?", "Apagar", 3, this, alertRemoverTodas);
+				
+			}
+			
+			private function alertRemoverTodas(event:CloseEvent):void {
+				ultimoItem = "";
+				if (event.detail==Alert.YES) {
+					if(pecasGrid.dataProvider != null && ArrayCollection(pecasGrid.dataProvider).length > 0){
+						if(this.idDocSeoper == 0){
+							this.idDocSeoper = PecasBean(ArrayCollection(pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;
+						}
+					}
+					serviceController.removerPecas(this.idDocSeoper);
+				}
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				ultimoItem = "";
+				if (event.detail==Alert.YES) {
+					pecas = PecasBean(pecasGrid.selectedItem);
+					var idDocSegOper:Number;
+					idDocSegOper = PecasBean(ArrayCollection(pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;
+					if(ArrayCollection(pecasGrid.dataProvider).length == 1){
+						ultimoItem = "sim";
+					}
+					serviceController.removerPeca(pecas, idDocSegOper, ultimoItem);	
+				}
+			}
+			
+			private function onResultRemoverPeca(event: ResultEvent): void{
+				var array:Array = String(event.result).split("-"); 
+				if (array.length == 2){
+					Alert.show(array[0], "Alerta");
+				}else{
+					Alert.show(String(event.result),"Alerta");
+					ArrayCollection(pecasGrid.dataProvider).removeItemAt(pecasGrid.selectedIndex);	
+					
+					//				}else{
+					//					Alert.show("Ocorreu um erro ao excluir a Peça!","Alerta");
+					//				}
+					if(this.ultimoItem == "sim"){
+						serviceController.removerFuncionarioPecas(segmentoBean);
+					}
+				}	
+			}
+			private function reenviarPecas():void{
+				verificarpecas.id = PecasBean(ArrayCollection(pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;
+				serviceController.saveSegundoOrcamento(verificarpecas);	
+				
+			}
+			private function onResultSaveSegundoOrcamento(event:ResultEvent):void{
+				if (event.result != null){
+					Alert.show("Peças salva com sucesso!", "Sucesso");
+					pecasGrid.dataProvider = null;
+					isSave = true;
+					this.close();
+					
+				}else{
+					Alert.show("Não foi possível salvar peças, verifica a lista de peças!", "Sucesso");
+				}
+				
+			}
+			private function onResultFinAllPecas(event:ResultEvent):void{
+				var list:ArrayCollection = ArrayCollection(event.result);
+				if(list.length > 0){
+					var p:PecasBean = PecasBean(list.getItemAt(0));
+					funcionarioPecas.text = p.nomeFuncionario;
+				}
+				pecasGrid.dataProvider = event.result;
+			}
+			private function onResultFindIdDocSegOper(event:ResultEvent):void{
+				this.idDocSeoper = Number(event.result);
+				serviceController.findNumDocDocSegOper(this.idSegmento);
+			}
+			private function onResultRemoverPecas(event:ResultEvent):void{
+				if(event.result != null){
+					Alert.show("Peças removidas com sucesso!", "Sucesso");
+					serviceController.removerFuncionarioPecas(segmentoBean);
+					carregarOperacoesCbx();
+				}else{
+					Alert.show("Não foi possível remover peças!", "Erro");
+				}
+			}
+			
+			private function onResultRemoverFuncionarioPecas(result:ResultEvent):void{
+				if(result == false){
+					Alert.show("Ocorreu um erro ao remover o funcionário responsável pelas peças", "Erro!");
+					return;
+				}
+				funcionarioPecas.text = "";
+			}
+			private function carregarOperacoesCbx ():void{
+				serviceController.findAllOperacoes (idSegmento);
+			}
+			private	var list:ArrayCollection = new ArrayCollection();
+			private function onResultfindAllOperacoes(event:ResultEvent):void{
+				list = ArrayCollection(event.result);
+				operForm.visible = true;
+				operForm.includeInLayout = true;
+				if(list.length > 0){
+					operCbx.includeInLayout = true;
+					operCbx.visible = true;
+					operCbx.dataProvider = list;
+					return;
+				}
+				if(verificarpecas != null){
+					serviceController.findAllPecas(this.idSegmento, null);
+				}else{
+					serviceController.findAllPecas(this.idSegmento, null);
+				}
+				operForm.visible = false;
+				operForm.includeInLayout = false;
+			}
+			private function changeComboOperacao():void{
+				serviceController.findAllPecas(this.idDocSeoper); 
+				
+			}	
+			override public function  close(event:CloseEvent = null):void{
+				dispatchEvent(new CloseEvent(CloseEvent.CLOSE));
+				if(pecasGrid.dataProvider != null && ArrayCollection(pecasGrid.dataProvider).length>0){
+					verificarpecas.id = PecasBean(ArrayCollection(pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;
+					serviceController.saveSegundoOrcamento(verificarpecas);	
+				}
+			}
+			
+			
+			private function adicionarPecas():void{
+				if(funcionarioPecas.text == ""){
+					Alert.show("Por favor adicione um funcionário responsável","Alerta");
+					return;
+				}
+				if(partNoText.text == ""){
+					Alert.show("Por favor adicione o Part No","Alerta");
+					return;					
+					//				}if(partNameText.text == ""){
+					//					Alert.show("Por favor adicione o Part Number","Alerta");
+					//					return;
+				}if(qtdText.text == ""){
+					Alert.show("Por favor adicione a QTD","Alerta");
+					return;
+				}if(sosText.text == ""){
+					Alert.show("Por favor adicione a SOS","Alerta");
+					return;
+				}
+				var pecasAvul:PecasBean = new PecasBean();
+				pecasAvul.partNo = partNoText.text.toUpperCase();
+				//				pecasAvul.partName = partNameText.text.toUpperCase();
+				pecasAvul.qtd = qtdText.text;
+				//pecasAvul.groupNumber = groupNumberText.text;
+				//pecasAvul.referenceNo = referenceNoText.text;
+				//pecasAvul.smcsCode = smcsCodeText.text;
+				//pecasAvul.groupName = groupNameText.text;
+				//pecasAvul.userId = userIdText.text;
+				pecasAvul.sos = sosText.text;
+				if(pecasGrid.dataProvider != null && ArrayCollection(pecasGrid.dataProvider).length > 0){
+					var idDocSegOper:Number;
+					idDocSegOper = PecasBean(ArrayCollection(pecasGrid.dataProvider).getItemAt(0)).idDocSegOper;					
+					//if(list.length > 0){
+					serviceController.savePecasAvulso(pecasAvul, idDocSegOper);						
+					//}
+				}else if(list.length > 0){
+					if(operCbx.selectedIndex == -1){
+						Alert.show("Selecione uma Operação!","Alerta");
+						return;
+					}					
+					serviceController.savePecasAvulsoDocSeg(pecasAvul, idSegmento, operCbx.selectedItem.id);//Usado quando não foram importadas peças e ainda não existe registro na tabela Ge_Doc_Seg_Oper(Que existem operações). 
+				}else{
+					serviceController.savePecasAvulsoDocSeg(pecasAvul, idSegmento, null);//Usado quando não foram importadas peças e ainda não existe registro na tabela Ge_Doc_Seg_Oper(Apenas segmentos).
+				}
+			}
+			
+			private function onResultSavePecasAvulso(event:ResultEvent):void{
+				var array:Array = String(event.result).split("-"); 
+				if (array.length == 2){
+					Alert.show(array[0], "Alerta");
+				}else{
+					Alert.show("Peça adicionada com sucesso","Alerta");
+					if(operForm.includeInLayout && operForm.visible){
+						if(operCbx.selectedItem == null){
+							serviceController.findAllPecas(idSegmento, null);
+						}else{
+							serviceController.findAllPecas(idSegmento, operCbx.selectedItem.id);
+						}
+						this.limparCampos();
+					}else{
+						if(verificarpecas != null){
+							serviceController.findAllPecas(idSegmento, verificarpecas.idOperacao);
+						}else{
+							serviceController.findAllPecas(idSegmento, null);
+						}
+						this.limparCampos();
+					}
+					serviceController.saveResponsavelPecas(segmentoBean);
+				}
+			}
+			//				if (event.result == true){
+			//					Alert.show("Peça adicionada com sucesso!", "Alerta");
+			//					if(operForm.includeInLayout && operForm.visible){
+			//						serviceController.findAllPecas(idSegmento, operCbx.selectedItem.id);
+			//						this.limparCampos();
+			//					}else{
+			//						serviceController.findAllPecas(idSegmento, null);
+			//						this.limparCampos();
+			//					}
+			//				}else{
+			//					Alert.show("Ocorreu um erro ao salvar a peça!","Alerta");
+			//				}
+			//			}
+			private function limparCampos():void{
+				partNoText.text = "";
+				//				partNameText.text = "";
+				qtdText.text = "";
+				//sosText.text = "";
+				//				groupNumberText.text = "";
+				//				referenceNoText.text = "";
+				//				smcsCodeText.text = "";
+				//				groupNameText.text = "";
+				//				userIdText.text = "";
+			}
+			
+			private function onResultFindNumDocDocSegOper(event:ResultEvent):void{
+				if(event.result == null || event.result == ''){
+					if(!isNaN(idSegmento)){
+						importar.enabled = true;
+						removerPecasButton.enabled = true;
+						if((checkInObj != null) && (checkInObj.statusNegociacaoConsultor == 'A' || checkInObj.statusNegociacaoConsultor == 'R')){
+							adicionarBtn.visible = false;
+							removerPecasButton.enabled = false;
+							removerPecasButton.includeInLayout = false;
+							importar.enabled = false;
+						}
+						if(operForm.includeInLayout && operForm.visible){
+							return;
+						}else{
+							serviceController.findAllPecas(this.idSegmento, null);					
+						}
+					}					
+				}else{
+					if(operForm.includeInLayout && operForm.visible){
+						return;
+					}else{
+						serviceController.findAllPecas(this.idSegmento, null);
+						importar.enabled = false;
+					}
+				}
+				
+			}
+			
+			protected function pesquisarFuncionarioBtn_clickHandler(event:MouseEvent):void
+			{
+				popUpPesquisarFuncionario = new PopUpFuncionario();
+				popUpPesquisarFuncionario.addEventListener(CloseEvent.CLOSE, removePesquisarFuncionarioPopUp);
+				PopUpManager.addPopUp(popUpPesquisarFuncionario, this, true);
+				PopUpManager.centerPopUp(popUpPesquisarFuncionario);
+				popUpPesquisarFuncionario.init(urlLogin);
+				
+			}
+			
+			public function gerarReport():void{
+				var uv:URLVariables = new URLVariables();
+				if(pecasGrid.dataProvider == null){
+					Alert.show("Lista de peças vazia","Alerta");
+					return;	
+				}else{
+					uv.idSegmento = this.idSegmento;
+				generatePDF(uv);
+				}
+			}
+			
+			private var urlReport:String = "";
+			public function generatePDF(uv:URLVariables):void
+			{				
+				var url:URLRequest = new URLRequest(urlReport+"/ReportPecas");
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			
+			private function removePesquisarFuncionarioPopUp(obj:CloseEvent):void{
+				if(popUpPesquisarFuncionario.usuarioBean != null){
+					this.usuarioBean = popUpPesquisarFuncionario.usuarioBean;
+					funcionarioPecas.text =  popUpPesquisarFuncionario.usuarioBean.nome;
+					this.segmentoBean.idFuncionarioPecas = popUpPesquisarFuncionario.usuarioBean.matricula;
+					this.segmentoBean.nomeFuncionarioPecas = popUpPesquisarFuncionario.usuarioBean.nome;
+				}else{
+					funcionarioPecas.text = "";					
+				}
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);	
+			}
+			
+		]]>
+	</mx:Script>
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="fazerUpload" result="uploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllPecas" result="onResultFinAllPecas(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllOperacoes" result="onResultfindAllOperacoes(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerPeca" result="onResultRemoverPeca(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="saveSegundoOrcamento" result="onResultSaveSegundoOrcamento(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="saveResponsavelPecas" result="onResultSaveResponsavelPecas(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="savePecasAvulso" result="onResultSavePecasAvulso(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="savePecasAvulsoDocSeg" result="onResultSavePecasAvulso(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerPecas" result="onResultRemoverPecas(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerFuncionarioPecas" result="onResultRemoverFuncionarioPecas(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findIdDocSegOper" result="onResultFindIdDocSegOper(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findNumDocDocSegOper" result="onResultFindNumDocDocSegOper(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findSegmentoBy" result="onResultFindSegmentoBy(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="PecasCanvas" backgroundColor="white">
+		
+		<mx:HBox x="0" y="150" width="100%" height="100%">
+			<mx:DataGrid width="100%" id="pecasGrid" height="100%">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Funcionário" dataField="nomeFuncionario"/>
+					<mx:DataGridColumn headerText="Num. Doc." dataField="numDoc"/>
+					<mx:DataGridColumn headerText="QTD" dataField="qtd"/>
+					<mx:DataGridColumn headerText="Part No" dataField="partNo"/>				
+					<mx:DataGridColumn headerText="Part Name" dataField="partName"/>
+					<mx:DataGridColumn headerText="SOS" dataField="sos"/>					
+					<mx:DataGridColumn headerText="Erro" dataField="descerr"/>					
+					<mx:DataGridColumn headerText="Excluir" dataField="excluir" id="columnExcluir">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRPECAS', true)) }" />
+								</mx:VBox>
+							</mx:Component> 	
+						</mx:itemRenderer>							
+					</mx:DataGridColumn>				  
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:HBox>
+		
+		<mx:HBox x="0" y="95" width="100%" horizontalAlign="center" verticalAlign="middle" visible="false">
+			<mx:Form>
+				<mx:FormItem id="operForm" label="Operações">
+					<mx:ComboBox id="operCbx" prompt="Selecione" change="changeComboOperacao()" selectedIndex="-1" labelField="descricaoImportPecas"/>
+				</mx:FormItem>				
+			</mx:Form>
+				<mx:Button label="Importar" id="importar" click="adicionarArquivo()" toolTip="Anexar Arquivo"/>
+				<mx:Button label="Reenviar Peças" id="reevPecas" click="reenviarPecas()" includeInLayout="false" enabled="false"/>
+				<mx:Button label="Remover todas as Peças" id="removerPecasButton" click="removerTodasPecas()"/>
+		</mx:HBox>			
+		
+		<mx:HBox x="0" y="35" width="100%" horizontalAlign="center">
+			<mx:Label text="QTD"/>
+			<mx:TextInput width="45" id="qtdText" restrict="0-9" maxChars="10" tabIndex="1"/>
+			<mx:Label text="Part No"/>
+			<mx:TextInput width="72" id="partNoText" maxChars="30" tabIndex="2"/>
+			<mx:Label text="SOS" width="30"/>
+			<mx:TextInput width="33" id="sosText" text="000" maxChars="15" tabIndex="3"/>
+			<mx:Image source="./img/excel.png" id="imprimir" click="gerarReport()"  width="23" height="22" toolTip="Exportar peça para excel."/>
+		</mx:HBox>
+		<mx:HBox x="0" y="65" width="100%" horizontalAlign="center" visible="false">
+			<mx:Button label="Adicionar" id="adicionarBtn" click="adicionarPecas()"/>
+			<!--mx:Image source="./img/excel.png" id="imprimir" click="gerarReport()"  width="23" height="22" toolTip="Exportar peça para excel."/-->
+		</mx:HBox>
+		<mx:HBox width="100%" horizontalAlign="center" x="0" y="5" visible="false">
+			<mx:Label text="Funcionário responsável: "/>
+			<mx:TextInput id="funcionarioPecas" enabled="false" />
+			<mx:Button id="pesquisarFuncionarioBtn" label="Pesquisar Funcionário" click="pesquisarFuncionarioBtn_clickHandler(event)"/>
+		</mx:HBox>
+	</mx:Canvas>	
+</util:ModuleTitleWindow>

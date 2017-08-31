@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Peças BO" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1100" height="400">
+	<mx:Script>
+		
+		<![CDATA[
+			import bean.CheckinBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin: String;
+			public var idCheckin: Number;
+						
+			public function init(urlLogin:String, idCheckin:Number):void {				
+				this.idCheckin = idCheckin;
+				this.urlLogin = urlLogin;
+				serviceController.buscaPecasBO(idCheckin);
+			}
+
+			[Bindable]
+			private var dataList: ArrayCollection = new ArrayCollection();
+			private function onResultBuscaPecasBO(event: ResultEvent):void{
+				dataList.addAll(ArrayCollection(event.result));
+			}	
+			
+			private function doubleClickGridTree():void{
+			}			
+			
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="buscaPecasBO" result="onResultBuscaPecasBO(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" backgroundColor="white">
+
+		<mx:AdvancedDataGrid width="100%" height="100%" id="gridTree" folderClosedIcon="{null}" folderOpenIcon="{null}" defaultLeafIcon="{null}" doubleClick="doubleClickGridTree()" doubleClickEnabled="true">	
+
+			<mx:dataProvider>
+				<mx:HierarchicalData source="{dataList}"/>
+			</mx:dataProvider>
+
+			<mx:groupedColumns>
+				<mx:AdvancedDataGridColumn headerText="Número &#13;Documento" dataField="rfdcno"/>
+				<mx:AdvancedDataGridColumn headerText="Número OS" dataField="wono"/>
+				<mx:AdvancedDataGridColumn headerText="Seguimento" dataField="wosgno"/>
+				<mx:AdvancedDataGridColumn headerText="Operação" dataField="woopno"/>
+				<mx:AdvancedDataGridColumn headerText="Pano20" dataField="pano20"/>
+				<mx:AdvancedDataGridColumn headerText="Ds18" dataField="ds18"/>
+				<mx:AdvancedDataGridColumnGroup headerText="Quantidade Peças">
+					<mx:AdvancedDataGridColumn headerText="BO" dataField="qybo"/>
+					<mx:AdvancedDataGridColumn headerText="Atendidas" dataField="qyor"/>
+				</mx:AdvancedDataGridColumnGroup>
+				<mx:AdvancedDataGridColumn headerText="Data" dataField="data"/>
+				<mx:AdvancedDataGridColumn headerText="Status" dataField="statusReal"/>
+				
+			</mx:groupedColumns>
+			
+		</mx:AdvancedDataGrid>
+
+	</mx:Canvas>
+	
+</util:ModuleTitleWindow>

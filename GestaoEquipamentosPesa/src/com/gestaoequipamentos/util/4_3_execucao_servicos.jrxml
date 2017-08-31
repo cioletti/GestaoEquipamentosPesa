@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="4.3 Execucao Servicos" pageWidth="555" pageHeight="802" whenNoDataType="AllSectionsNoDetail" columnWidth="555" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="FILIAL" class="java.lang.String"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String">
+		<defaultValueExpression><![CDATA["D:\\projetos\\web\\GestaoEquipamentos\\WebContent\\WEB-INF\\proposta\\"]]></defaultValueExpression>
+	</parameter>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="707">
+			<textField pattern="dd MMMMM yyyy">
+				<reportElement x="142" y="168" width="100" height="20"/>
+				<textElement/>
+				<textFieldExpression class="java.util.Date"><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement x="3" y="168" width="139" height="20"/>
+				<textElement/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{FILIAL}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="38" width="555" height="22" forecolor="#000000" backcolor="#E8E8E8"/>
+				<box>
+					<topPen lineWidth="1.0" lineColor="#999999"/>
+					<bottomPen lineWidth="1.0" lineColor="#999999"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Times New Roman" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[V- Do Aceite do Cliente ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="83" width="555" height="58"/>
+				<textElement textAlignment="Justified"/>
+				<text><![CDATA[Pelo aceite da presente proposta o cliente acima identificado declara para todos os fins ter pleno entendimento das condições da prestação do(s) serviço(s), concordando com as mesmas sem ressalvas de qualquer natureza, autorizando a prestadora neste ato a executar todo e qualquer serviço necessário a plena reparação da(s) falha(s), fazendo parte integrante do mesmo eventuais orçamentos complementares.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="213" width="242" height="43"/>
+				<textElement/>
+				<text><![CDATA[____________________________________
+  Carimbo da empresa/ Assinatura do Cliente]]></text>
+			</staticText>
+		</band>
+	</title>
+</jasperReport>

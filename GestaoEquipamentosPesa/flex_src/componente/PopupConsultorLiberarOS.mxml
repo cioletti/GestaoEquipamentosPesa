@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1084" height="646" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			import bean.CondicaoPagamentoBean;
+			
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import util.ProgressBarHelper;
+			
+			private var checkinBean:CheckinBean;
+			private var urlLogin:String;
+			
+			
+			public function init(urlLogin:String, checkin:CheckinBean): void{
+				this.checkinBean = checkin;
+				this.urlLogin = urlLogin;
+				this.title = "LIBERAR OS: " + checkin.numeroOs;
+				serviceController.findAllCondicaoPagamento();
+			}
+			
+			private function liberarOS():void{
+				if(isCamposValidos()){
+					if(statusNegociacaoCbx.selectedItem.valor == 'A' && this.checkinBean.tipoCliente == 'EXT'){
+						if(data.text == ''){
+							Alert.show("O campo de data é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(moMisDesTxt.text) == ''){
+							Alert.show("O campo de mão de obra, miscelanios e deslocamento é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(valorPecasTxt.text) == ''){
+							Alert.show("O campo de valor de peças é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(valorTotaTxt.text) == ''){
+							Alert.show("O campo de valor total é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(propNumeroTxt.text) == ''){
+							Alert.show("O campo de proposta número é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(StringUtil.trim(ordemCompraPeca.text) == ''){
+							Alert.show("O campo ordem de compra peça é obrigatório!", "Alerta");
+							return;
+						}			
+						if(StringUtil.trim(ordemCompraServico.text) == ''){
+							Alert.show("O campo ordem de compra serviço é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(StringUtil.trim(estabelecimentoCredorPecas.text) == ''){
+							Alert.show("O campo estabelecimento credor de peças é obrigatório!", "Alerta");
+							return;
+						}			
+						if(StringUtil.trim(estabelecimentoCredorServicos.text) == ''){
+							Alert.show("O campo estabelecimento credor de serviços é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(condicaoPagamentoPecasCbx.selectedIndex == -1){
+							Alert.show("O campo condição de pagemanto de peças é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(condicaoPagamentoServicosCbx.selectedIndex == -1){
+							Alert.show("O campo condição de pagemanto de Serviços é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(descPorcPecas.text) == ''){
+							Alert.show("O campo desconto porcentagem de peças é obrigatório!", "Alerta");
+							return;
+						}			
+						if(StringUtil.trim(descPorcServicos.text) == ''){
+							Alert.show("O campo desconto porcentagem de serviços é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(StringUtil.trim(descValorPecas.text) == ''){
+							Alert.show("O campo desconto valor de peças é obrigatório!", "Alerta");
+							return;
+						}			
+						if(StringUtil.trim(descValorServicos.text) == ''){
+							Alert.show("O campo desconto valor de serviços é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(automaticaFaturadaCbx.selectedIndex == -1){
+							Alert.show("O campo manutenção é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(obsPeca.text) == ''){
+							Alert.show("O campo observação de peças é obrigatório!", "Alerta");
+							return;
+						}			
+						if(StringUtil.trim(obsServico.text) == ''){
+							Alert.show("O campo observação de serviços é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(CondicaoPagamentoBean(condicaoPagamentoServicosCbx.selectedItem).sigla == 'XXXX' || CondicaoPagamentoBean(condicaoPagamentoPecasCbx.selectedItem).sigla == 'XXXX'){
+							if(StringUtil.trim(condEspecial.text) == ''){
+								Alert.show("O campo condição especial é obrigatório!", "Alerta");
+								return;
+							}
+						}
+						if(StringUtil.trim(autPorText.text) == ''){
+							Alert.show("O campo de autorizado por é obrigatório!", "Alerta");
+							return;
+						}
+						if(StringUtil.trim(preenchidoPorTxt.text) == ''){
+							Alert.show("O campo preenchido por é obrigatório!", "Alerta");
+							return;
+						}
+						
+						if(descPorcPecas.text != '0,00' || descPorcServicos.text != '0,00' || descValorPecas.text != '0,00' || descValorServicos.text != '0,00'){
+							if(obsDescontoTxt.text == ''){
+								Alert.show("O campo de observação de desconto é obrigatório!", "Alerta");
+								return;
+							}
+						}
+						//this.checkinBean.dataFaturamento = data.text;
+						
+						this.checkinBean.moMiscDesl = moMisDesTxt.text;
+						this.checkinBean.valorPecas = valorPecasTxt.text;
+						this.checkinBean.valorTotal = valorTotaTxt.text;
+						//this.checkinBean.condicaoPagamento = condPagText.text;
+						this.checkinBean.propNumero = propNumeroTxt.text;
+						
+						this.checkinBean.ordemCompraPeca = ordemCompraPeca.text;
+						this.checkinBean.ordemCompraServico = ordemCompraServico.text;
+						
+						this.checkinBean.estabelecimentoCredorPecas = estabelecimentoCredorPecas.text;
+						this.checkinBean.estabelecimentoCredorServicos = estabelecimentoCredorServicos.text;
+						
+						this.checkinBean.condicaoPagamentoPecas = CondicaoPagamentoBean(condicaoPagamentoPecasCbx.selectedItem).sigla;
+						this.checkinBean.condicaoPagamentoServicos = CondicaoPagamentoBean(condicaoPagamentoServicosCbx.selectedItem).sigla;
+						
+						this.checkinBean.descPorcPecas = descPorcPecas.text;
+						this.checkinBean.descPorcServicos = descPorcServicos.text;
+						
+						this.checkinBean.descValorPecas = descValorPecas.text;
+						this.checkinBean.descValorServicos = descValorServicos.text;
+						
+						this.checkinBean.automaticaFaturada = automaticaFaturadaCbx.selectedItem.data;
+						
+						this.checkinBean.obsPeca = obsPeca.text;
+						this.checkinBean.obsServico = obsServico.text;
+						this.checkinBean.encerrarAutomatica = tipoEncarramentoCbx.selectedItem.data;
+						if(CondicaoPagamentoBean(condicaoPagamentoServicosCbx.selectedItem).sigla == 'XXXX' || CondicaoPagamentoBean(condicaoPagamentoPecasCbx.selectedItem).sigla == 'XXXX'){
+							this.checkinBean.condEspecial = condEspecial.text;
+						}
+						
+						this.checkinBean.autPor = autPorText.text;
+						//this.checkinBean.ordemCompra = ordemCompraTxt.text;
+						this.checkinBean.preenchidoPor = preenchidoPorTxt.text;
+						this.checkinBean.observacaoDesconto = obsDescontoTxt.text;
+				}
+						serviceController.consultorLiberarOS(statusNegociacaoCbx.selectedItem.valor, data.text, obsTxt.text,this.checkinBean);
+					}
+			}
+			private function onResultConsultorLiberarOS(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Operação realizada com sucesso!","Alerta!");
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação!","Alerta!");
+				}
+				this.close(null);
+			}
+			
+			private function isCamposValidos():Boolean{
+				
+				if(statusNegociacaoCbx.selectedIndex == -1){
+					Alert.show("O campo status OS é obrigatório!", "Alerta");
+					return false;
+				}else if(statusNegociacaoCbx.selectedItem.valor == 'A' && data.text == ''){
+					Alert.show("O campo de data é obrigatório!", "Alerta");
+					return false;
+				}else if((statusNegociacaoCbx.selectedItem.valor == 'P' || statusNegociacaoCbx.selectedItem.valor == 'R') && obsTxt.text == ''){
+					Alert.show("O campo observação é obrigatório!", "Alerta");
+					return false;
+				}				
+				return true;
+			}
+			
+
+			protected function statusNegociacaoCbx_changeHandler(event:ListEvent):void
+			{
+				if(statusNegociacaoCbx.selectedItem.valor == 'A'){
+					//data.enabled = true;
+					data.selectedDate = new Date();
+					obsTxt.text = '';
+				}else{
+					data.enabled = false;
+					data.text = '';
+					obsTxt.text = '';
+				}
+			}
+			
+			private var popupCdPg:PopupCondicaoPagamento;
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				popupCdPg = new PopupCondicaoPagamento();
+				popupCdPg.addEventListener(CloseEvent.CLOSE, removeCP);
+				PopUpManager.addPopUp(popupCdPg,this,true);
+				PopUpManager.centerPopUp(popupCdPg);
+				
+				popupCdPg.init(this.urlLogin);
+			}
+			
+			private function removeCP(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupCdPg.cp != null){
+					this.selectedCPP();
+				}
+			}
+
+			protected function condicaoPagamentoPecasCbx_changeHandler(event:ListEvent):void
+			{
+				if((condicaoPagamentoServicosCbx.selectedItem != null && CondicaoPagamentoBean(condicaoPagamentoServicosCbx.selectedItem).sigla == 'XXXX') || CondicaoPagamentoBean(condicaoPagamentoPecasCbx.selectedItem).sigla == 'XXXX'){
+					condEspecialForm.visible = true;
+					condEspecialForm.visible = true;
+				}else{
+					condEspecialForm.visible = false;
+					condEspecialForm.visible = false;
+					condEspecial.text = '';
+				}
+			}
+			
+			
+			protected function condicaoPagamentoServicosCbx_changeHandler(event:ListEvent):void
+			{
+				if((condicaoPagamentoServicosCbx.selectedItem != null && CondicaoPagamentoBean(condicaoPagamentoServicosCbx.selectedItem).sigla == 'XXXX') || CondicaoPagamentoBean(condicaoPagamentoPecasCbx.selectedItem).sigla == 'XXXX'){
+					condEspecialForm.visible = true;
+					condEspecialForm.visible = true;
+				}else{
+					condEspecialForm.visible = false;
+					condEspecialForm.visible = false;
+					condEspecial.text = '';
+				}
+			}
+			
+			private function selectedCPP():void{
+				var cppList:ArrayCollection = ArrayCollection(condicaoPagamentoPecasCbx.dataProvider);
+				for(var i:int=0; i < cppList.length; i++){
+					var cp:CondicaoPagamentoBean = CondicaoPagamentoBean(cppList.getItemAt(i));
+					if(popupCdPg.cp.sigla == cp.sigla){
+						condicaoPagamentoPecasCbx.selectedIndex = i;
+						this.condicaoPagamentoPecasCbx_changeHandler(null);
+						break;
+					}
+				}
+			}
+			
+			private function selectedCPS():void{
+				var cppList:ArrayCollection = ArrayCollection(condicaoPagamentoServicosCbx.dataProvider);
+				for(var i:int=0; i < cppList.length; i++){
+					var cp:CondicaoPagamentoBean = CondicaoPagamentoBean(cppList.getItemAt(i));
+					if(popupCdPg.cp.sigla == cp.sigla){
+						condicaoPagamentoServicosCbx.selectedIndex = i;
+						this.condicaoPagamentoServicosCbx_changeHandler(null);
+						break;
+					}
+				}
+			}
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				popupCdPg = new PopupCondicaoPagamento();
+				popupCdPg.addEventListener(CloseEvent.CLOSE, removeCPS);
+				PopUpManager.addPopUp(popupCdPg,this,true);
+				PopUpManager.centerPopUp(popupCdPg);
+				
+				popupCdPg.init(this.urlLogin);
+			}
+			
+			private function removeCPS(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupCdPg.cp != null){
+					this.selectedCPS();
+				}
+			}
+			private function onResultFindAllCondicaoPagamento(event:ResultEvent):void{
+				condicaoPagamentoPecasCbx.dataProvider = ArrayCollection(event.result);
+				condicaoPagamentoServicosCbx.dataProvider = ArrayCollection(event.result);
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:ArrayCollection id="findStatusOS">
+		<mx:Object label="Aprovada" valor="A"/>
+		<mx:Object label="Rejeitada Parcialmente" valor="P"/>
+		<mx:Object label="Rejeitada" valor="R"/>
+		</mx:ArrayCollection>
+	<mx:ArrayCollection id="comboFinalizacaoOS">
+		<mx:Object label="Sim" data="S" />
+		<mx:Object label="Não" data="N" />
+	</mx:ArrayCollection>
+	<mx:ArrayCollection id="comboEmissaoNota">
+		<mx:Object label="Automática" data="A" />
+		<mx:Object label="Bloqueado" data="B" />
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="consultorLiberarOS" result="onResultConsultorLiberarOS(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllCondicaoPagamento" result="onResultFindAllCondicaoPagamento(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+		<mx:Form width="100%" height="100%">
+			<mx:FormItem label="Status OS:" width="100%" required="true">
+				<mx:ComboBox  id="statusNegociacaoCbx" dataProvider="{findStatusOS}"  prompt="Selecione" labelField="label" selectedIndex="-1" change="statusNegociacaoCbx_changeHandler(event)"></mx:ComboBox>				
+			</mx:FormItem>
+			<mx:FormItem label="Data de aprovação:" width="100%">
+				<mx:DateField dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+							  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']" x="141" y="106" id="data" formatString="DD/MM/YYYY" enabled="false" editable="false"/>					
+			</mx:FormItem>
+			<mx:FormItem label="Observação:" width="100%" height="78">
+				<mx:TextArea id="obsTxt" width="266" height="68"/>				
+			</mx:FormItem>
+			<mx:HBox width="100%">
+				
+				
+				
+				<mx:Form x="0" y="18" width="50%">
+					<!--mx:FormItem label="Data Faturamento" required="true" width="265" x="0" y="104">
+						<mx:DateField id="data0" formatString="DD/MM/YYYY" dayNames="['D','S','T','Q','Q','S','S']" monthNames="['Janeiro','Fevereiro','Março','Abril',
+									  'Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+					</mx:FormItem-->
+					<mx:FormItem label="Encerrar Automática" required="true" width="265" x="0" y="104">
+						<mx:ComboBox  id="tipoEncarramentoCbx" selectedIndex="-1" dataProvider="{comboFinalizacaoOS}" labelField="label" prompt="Selecione"/>
+					</mx:FormItem>
+					<mx:FormItem label="MO/MISC/Desloc." required="true" width="265" x="0" y="104">
+						<control:DecimalInput editable="true"  id="moMisDesTxt" width="93" precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Valor Peças" required="true" width="265" x="0" y="140">
+						<control:DecimalInput editable="true"  id="valorPecasTxt" width="93"   precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Valor Total" required="true" width="265" x="0" y="178">
+						<control:DecimalInput editable="true"  id="valorTotaTxt" width="93"   precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<!--mx:FormItem label="Cond. Pag." required="true" width="348" x="0" y="217">
+						<mx:TextInput maxChars="50"  id="condPagText" width="194"  />							
+					</mx:FormItem-->
+					<mx:FormItem label="Prop. Número" required="true" width="347" x="0" y="257">
+						<mx:TextInput  id="propNumeroTxt" width="194"  />							
+					</mx:FormItem>
+					<mx:FormItem label="Ordem Comp. Peça" required="true" width="347">
+						<mx:TextInput   id="ordemCompraPeca" width="194"  maxChars="15"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Ordem Comp. Serviço" required="true" width="347">
+						<mx:TextInput   id="ordemCompraServico" width="194" maxChars="15" />							
+					</mx:FormItem>
+					<mx:FormItem label="Estab. Credor Peças" required="true" width="347">
+						<mx:TextInput   id="estabelecimentoCredorPecas" width="194"  restrict="[0-9]"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Estab. Credor Serviços" required="true" width="347">
+						<mx:TextInput   id="estabelecimentoCredorServicos" width="194"  restrict="[0-9]"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Cond. Pag. Peças" required="true" >
+						<mx:HBox>
+							<mx:ComboBox  id="condicaoPagamentoPecasCbx" selectedIndex="-1"  labelField="descricao" prompt="Selecione" change="condicaoPagamentoPecasCbx_changeHandler(event)"/>
+							<mx:Button label="ADD" click="button1_clickHandler(event)"/>	
+						</mx:HBox>
+					</mx:FormItem>
+					<mx:FormItem label="Cond. Pag. Serviços" required="true" >
+						<mx:HBox>
+							<mx:ComboBox  id="condicaoPagamentoServicosCbx" selectedIndex="-1"  labelField="descricao" prompt="Selecione" change="condicaoPagamentoServicosCbx_changeHandler(event)"/>
+							<mx:Button label="ADD" click="button2_clickHandler(event)"/>	
+						</mx:HBox>
+					</mx:FormItem>
+				</mx:Form>
+				<mx:Form width="50%">
+					<mx:FormItem label="Desc % Peças" required="true" width="347">
+						<control:DecimalInput editable="true"  id="descPorcPecas" width="93"   precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Desc % Serviços" required="true" width="347">
+						<control:DecimalInput editable="true"  id="descPorcServicos" width="93"   precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Desc. VLR Peças" required="true" width="347">
+						<control:DecimalInput editable="true"  id="descValorPecas" width="93"   precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Desc. VLR Serviços" required="true" width="347">
+						<control:DecimalInput editable="true"  id="descValorServicos" width="93"   precision="2" currencyFormat="br" useThousandsSeparator="true"/>							
+					</mx:FormItem>
+					<mx:FormItem label="Faturamento" required="true" >
+						<mx:ComboBox  id="automaticaFaturadaCbx" selectedIndex="-1" dataProvider="{comboEmissaoNota}" labelField="label" prompt="Selecione"/>
+					</mx:FormItem>
+					<mx:FormItem label="Obs Peça" required="true" width="347">
+						<mx:TextArea maxChars="156"  id="obsPeca" width="194"  />							
+					</mx:FormItem>
+					<mx:FormItem label="Obs Serviço" required="true" width="347">
+						<mx:TextArea maxChars="156"  id="obsServico" width="194"  />							
+					</mx:FormItem>
+					
+					<mx:FormItem label="Aut. Por" required="true" width="347">
+						<mx:TextInput maxChars="20"  id="autPorText" width="194"  />							
+					</mx:FormItem>
+					<!--mx:FormItem label="Ordem de Compra" required="true" width="347">
+						<mx:TextInput maxChars="50"  id="ordemCompraTxt" width="194"  />							
+					</mx:FormItem-->
+					<mx:FormItem label="Preenchido Por" required="true" width="347">
+						<mx:TextInput maxChars="50"  id="preenchidoPorTxt" width="194"  />							
+					</mx:FormItem>
+					<mx:FormItem label="Obs: Desconto:" width="369" height="78">
+						<mx:TextArea id="obsDescontoTxt" width="226" height="68"/>				
+					</mx:FormItem>
+					<mx:FormItem label="Cond. especial" id="condEspecialForm" visible="false" includeInLayout="false" required="true" width="347">
+						<mx:TextArea maxChars="50"  id="condEspecial" width="194"  />							
+					</mx:FormItem>
+					<!--mx:FormItem label="Obs NF" required="true" width="347">
+						<mx:TextInput maxChars="50"  id="obsNFTxt" width="194"  />							
+					</mx:FormItem-->
+				</mx:Form>
+			</mx:HBox>
+			<mx:FormItem width="856" horizontalAlign="center">
+				<mx:Button x="169" y="191" label="Ok"  click="liberarOS()"/>				
+			</mx:FormItem>
+		</mx:Form>
+		
+	
+	
+	 
+		
+	
+	
+</util:ModuleTitleWindow>

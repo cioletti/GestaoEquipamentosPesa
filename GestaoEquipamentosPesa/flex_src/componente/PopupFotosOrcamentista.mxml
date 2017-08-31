@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleTitleWindow  xmlns="util.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="600" height="250" alpha="0.97" cornerRadius="4">
+	<mx:Script>
+		<![CDATA[
+			import bean.CheckinBean;
+			
+			import mx.core.IFlexDisplayObject;
+			
+			import bean.FotosBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var fotos: FotosBean = new FotosBean();
+			
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione a Foto(*.jpg;)", "*.jpg;*.png;");
+			private var urlReport:String;
+			private var urlLogin:String;
+			private var checkinBean:CheckinBean;
+			private var usuarioBean:UsuarioBean;
+			
+			private function erro(event: FaultEvent): void{
+				Alert.show(""+event);
+			}
+			
+		
+			public function init(urlLogin:String, checkin:CheckinBean, usuarioBean:UsuarioBean): void{
+				gridFotos.addEventListener("REMOVERARQUIVO", removerArquivo);
+				gridFotos.addEventListener("VISUALIZARARQUIVO", visualizarArquivo);
+				gridFotos.addEventListener("EDITARFOTOS", editarFotoOrcamentista);
+				fotos.idCheckin = checkin.id;
+				fotos.numeroOs = checkin.numeroOs;
+				this.checkinBean = checkin;
+				this.usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin;
+				var numeroOS:String;
+				if(checkinBean.numeroOs != null){
+					numeroOS = checkinBean.numeroOs;
+				}else{
+					numeroOS = "";
+				}
+				this.title = "FOTOS DA OS: " + numeroOS;
+ 				//serviceController.findAllArquivos(fotos);
+				serviceController.findAllJobControlOrc(checkin.id);
+			}
+			
+			public function resultFindAllJobControlOrc (event:ResultEvent):void{
+				jobControlCbx.dataProvider = ArrayCollection(event.result);
+			}
+			
+			//Métodos de UPLOAD
+			/**
+			 * @private
+			 * Chamado quando o botao de adicinar arquivor for clicado.
+			 */
+			private function adicionarArquivos():void {
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivo);
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivo(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				fotos.jobControl = String(jobControlCbx.selectedItem);
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				serviceController.fazerUploadFotoOrcamentista(fotos, data, uploadFile.name);
+			}
+
+			/**
+			 * @private
+			 * Exibe a mensagem ao usuario informando que o Upload foi realizado com sucesso.
+			 */
+			private function uploadSucesso(event:ResultEvent):void {
+				if(Boolean(event.result)){
+					serviceController.findAllArquivosOcamentista(checkinBean.numeroOs, String(jobControlCbx.selectedItem));
+					Alert.show("Arquivo anexado com sucesso.", "Sucesso!");
+					return;
+				}
+				Alert.show("Ocorreu um erro ao anexar arquivo!", "Alerta!");
+			}
+			
+			private function onResultFindAllArquivos(event: ResultEvent): void{
+				gridFotos.dataProvider = ArrayCollection(event.result);
+				serviceController.getUrlReport();
+			}
+			
+			private function removerArquivo(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente excluir anexo?", "Alerta", 3, this, alertClickHandler);
+			}
+
+
+			private function visualizarArquivo(ev: Event): void{
+				downloadFileFotos('unico');
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (this.usuarioBean.siglaPerfil == 'SUPERF'){
+					Alert.show("Você não tem permissão para remover o arquivo!", "Alerta!");
+					return;
+				}
+				if (event.detail==Alert.YES) {
+					var nomeArquivo: String;
+					nomeArquivo = String(gridFotos.selectedItem);
+					serviceController.removerFotoOrcamentista(FotosBean(gridFotos.selectedItem));	
+				}
+			}	
+			private function editarFotoOrcamentista(ev: Event):void {
+				if (this.usuarioBean.siglaPerfil == 'SUPERF'){
+					Alert.show("Você não tem permissão para editar o arquivo!", "Alerta!");
+					return;
+				}
+					serviceController.editarFotoOrcamentista(FotosBean(gridFotos.selectedItem));	
+				
+			}
+			
+			private function onResultRemoverArquivoBibliografia(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					serviceController.findAllArquivosOcamentista(checkinBean.numeroOs, String(jobControlCbx.selectedItem));
+					Alert.show("Anexo excluído com sucesso.","Sucesso!");
+				}else{
+					Alert.show("Ocorreu um erro ao excluir anexo!","Alerta!");
+				}
+			}
+			private function onResultEditarFotoOrcamentista(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					serviceController.findAllArquivosOcamentista(checkinBean.numeroOs, String(jobControlCbx.selectedItem));
+					Alert.show("Observação editada com Sucesso!.","Sucesso!");
+				}else{
+					Alert.show("Ocorreu um erro ao editar observação!","Alerta!");
+				}
+			}
+			//metodo abrir popup
+			var popUpFotos:PopUpDescricaoFotos = null;
+			private function popUpDescricaoFotos():void{
+				popUpFotos = new PopUpDescricaoFotos();
+				popUpFotos.addEventListener(CloseEvent.CLOSE, removeFotosOSPopUp);
+				PopUpManager.addPopUp(popUpFotos, this, true);
+				PopUpManager.centerPopUp(popUpFotos);
+				popUpFotos.init(urlLogin, this.checkinBean, String(jobControlCbx.selectedItem));
+			}
+			private function removeFotosOSPopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popUpFotos.isSave){
+					this.downloadFileFotos("todos");
+				}
+			}
+						
+			private function downloadFileFotos(action:String):void
+			{		
+				if((ArrayCollection (gridFotos.dataProvider)).length > 0){
+					
+				
+					var uv:URLVariables = new URLVariables();
+					if(action == 'unico'){
+						uv.idFotoOrcamentista = FotosBean(gridFotos.selectedItem).id;
+						uv.numOS = checkinBean.numeroOs;	
+						uv.cliente = checkinBean.cliente;
+						uv.codCliente = checkinBean.codCliente;
+						uv.modelo = checkinBean.modelo;
+						uv.serie = checkinBean.serie;
+						uv.descricaoArquivo = String(gridFotos.selectedItem);
+						uv.unico = "S";
+			            
+					}else{
+						//uv.idFotoOrcamentista = FotosBean(gridFotos.selectedItem).id;
+						uv.numOS = checkinBean.numeroOs;
+						uv.cliente = checkinBean.cliente;
+						uv.codCliente = checkinBean.codCliente;
+						uv.modelo = checkinBean.modelo;
+						uv.serie = checkinBean.serie;
+						uv.unico = "N";
+						uv.jobControl = jobControlCbx.selectedItem;
+					}
+					
+					var url:URLRequest = new URLRequest(urlReport+"/FotosOrcamentista");
+					url.method = "POST";
+					url.data = uv;
+					navigateToURL(url,"_blank");
+				}else{
+					Alert.show("Não existe arquivo a ser visualizado.","Alerta!");
+				}
+			}			
+			
+			private function resultGetUrlReport(event:ResultEvent):void{
+				this.urlReport = event.result as String;
+			}
+	
+
+			protected function jobControlCbx_changeHandler(event:ListEvent):void
+			{
+				anexar.visible = true;
+				visulizar.visible = true;
+				if (this.usuarioBean.siglaPerfil == 'SUPERF'){
+					anexar.visible = false;
+				}
+				serviceController.findAllArquivosOcamentista(checkinBean.numeroOs, String(jobControlCbx.selectedItem));
+			}
+
+		]]>
+	</mx:Script>
+
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="erro(event);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="fazerUploadFotoOrcamentista" result="uploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findAllArquivosOcamentista" result="onResultFindAllArquivos(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="removerFotoOrcamentista" result="onResultRemoverArquivoBibliografia(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="getUrlReport" result="resultGetUrlReport(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findAllJobControlOrc" result="resultFindAllJobControlOrc(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="editarFotoOrcamentista" result="onResultEditarFotoOrcamentista(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	
+	<mx:Resize id="resizeEffect" duration="1000"/>
+	
+	<mx:HBox width="100%" verticalAlign="top" xmlns:util="util.*">
+		<mx:Label text="Job Control:"/>
+		<mx:ComboBox id="jobControlCbx" prompt="Selecione" change="jobControlCbx_changeHandler(event)"></mx:ComboBox>
+		<mx:Button toolTip="Adicione um arquivo de cada vez" click="adicionarArquivos()" label="Anexar Arquivo" id="anexar" visible="false"/>
+		<mx:Button toolTip="Visuaizar todos os arquivos" click="popUpDescricaoFotos()" label="Visuaizar todos" id="visulizar" visible="false"/>
+	</mx:HBox>
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="osCanvas" x="0" y="85" xmlns:util="util.*">
+		<mx:DataGrid id="gridFotos" height="100%" width="100%">
+			<mx:columns>
+				<mx:DataGridColumn dataField="nomeArquivo" id="nomeArquivo" headerText="Arquivos" textAlign="left" sortable="false"/>
+				<mx:DataGridColumn dataField="observacao" id="observacao" headerText="Observação" textAlign="left" sortable="false">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:TextArea text="{data.observacao}" keyUp="textarea1_keyUpHandler(event)">
+
+								<mx:Script>
+									<![CDATA[
+										protected function textarea1_keyUpHandler(event:KeyboardEvent):void
+										{
+											data.observacao = this.text;
+										}
+									]]>
+								</mx:Script>
+
+								
+							</mx:TextArea>
+						</mx:Component> 
+					</mx:itemRenderer> 
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Ação" textAlign="center" width="100" sortable="false">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/edit.png" width="15" height="15" click="{dispatchEvent(new Event('EDITARFOTOS', true))}" toolTip="Salvar Observação"/>
+								<mx:Image source="img/remover.png" width="15" height="15" click="{dispatchEvent(new Event('REMOVERARQUIVO', true))}" toolTip="Remover Arquivo"/>
+								<mx:Image source="img/download.png" click="{dispatchEvent(new Event('VISUALIZARARQUIVO', true))}" toolTip="Visualizar Anexo"/>
+							</mx:HBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>		
+				
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:Canvas>
+</ModuleTitleWindow>

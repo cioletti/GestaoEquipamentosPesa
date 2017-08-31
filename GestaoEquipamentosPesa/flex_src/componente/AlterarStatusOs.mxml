@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			import util.ProgressBarHelper;
+			import bean.UsuarioBean;
+			import mx.validators.Validator;
+			private var myValidators: Array;
+			private var urlLogin:String;
+			
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+			}
+			
+			protected function sincronizar_clickHandler(event:MouseEvent):void
+			{
+				if(numOs.text == ''){
+					Alert.show("O campo OS é obrigatório!", "Alerta");
+					//ProgressBarHelper.removeProgressBar();
+					return;
+				}
+				
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente voltar o Status da OS?", "Alerta", 3, this,alertClickHandlerSincronizar );
+			}
+			
+			protected function alertClickHandlerSincronizar(event:CloseEvent):void{
+				if (event.detail==Alert.YES) {					
+
+					serviceController.voltarStatusOs(numOs.text);
+				}
+			}
+			
+			private function onResultVoltarStatusOs(event:ResultEvent):void{
+				Alert.show(String(event.result), "Alerta");
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+		<mx:Label text="Voltar Status de OS" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	
+	<mx:VBox  width="100%" y="60" horizontalAlign="center" height="113">
+		<mx:Form  height="61">			
+			<mx:FormItem label="Número Os" required="true" height="25" width="169">
+				<mx:TextInput id="numOs" maxChars="10"  width="69" editable="true"/>				
+			</mx:FormItem>
+			
+		</mx:Form>
+		<mx:Button label="Voltar" click=" sincronizar_clickHandler(event)"/>
+	</mx:VBox>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="voltarStatusOs" result="onResultVoltarStatusOs(event);ProgressBarHelper.removeProgressBar()" />
+
+	</mx:RemoteObject>	
+</mx:Canvas>

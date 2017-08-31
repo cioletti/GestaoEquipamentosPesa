@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleTitleWindow  xmlns="util.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="600" height="250" alpha="0.97" cornerRadius="4">
+	<mx:Script>
+		<![CDATA[
+			import bean.BibliografiaBean;
+			import bean.CheckinBean;
+			import bean.FotosBean;
+			import bean.SegmentoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var fotos: FotosBean = new FotosBean();
+			public var isSave: Boolean = false;
+			
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione a Foto(*.jpg;)", "*.jpg;");
+			private var urlReport:String;
+			private var urlLogin:String;
+			private var jobControl:String;
+			private var checkinBean:CheckinBean;
+			
+			private function erro(event: FaultEvent): void{
+				Alert.show(""+event);
+			}
+			
+			public function init(urlLogin:String, checkinBean:CheckinBean, jobControl:String): void{
+				this.checkinBean = checkinBean;
+				this.urlLogin = urlLogin;
+				this.jobControl = jobControl;
+				serviceController.findDetalhesFotos(checkinBean, jobControl);
+			}
+			
+			private function onResultSalvarDetalhesFotos(event: ResultEvent): void{
+				this.close(null);
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(tituloFotosText.text == ""){
+					Alert.show("O Campo Título Fotos é obrigatório!");
+					return;
+				}else{
+					isSave = true;
+					serviceController.salvarDetalhesFotos(this.checkinBean, this.jobControl, tituloFotosText.text, descricaoFalhaFotosText.text, conclusaoFotosText.text);	
+				}
+			}
+			private function findDetalhesFotos(event:ResultEvent): void{
+				serviceController.findDetalhesFotos(this.checkinBean, this.jobControl);
+			}
+			private function onResultFindDetalhesFotos(event: ResultEvent): void{
+				var segmento:SegmentoBean = SegmentoBean(event.result);
+				tituloFotosText.text = segmento.tituloFotos;
+				descricaoFalhaFotosText.text = segmento.descricaoFalhaFotos;
+				conclusaoFotosText.text = segmento.conclusaoFotos;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="erro(event);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="salvarDetalhesFotos" result="onResultSalvarDetalhesFotos(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findDetalhesFotos" result="onResultFindDetalhesFotos(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	
+	<mx:Resize id="resizeEffect" duration="1000"/>
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="osCanvas" x="0" y="85" xmlns:util="util.*">
+		<mx:VBox x="73" y="0" verticalAlign="middle" horizontalAlign="center" height="209" width="431">
+			<mx:HBox width="100%">
+				<mx:Label text="Título Fotos:" height="25" width="127"/>
+				<mx:TextArea height="25" width="296" id="tituloFotosText"/>
+			</mx:HBox>
+			<mx:HBox width="100%" height="55">
+				<mx:Label text="Descrição Falha:" height="25" width="128"/>
+				<mx:TextArea height="49" width="296" id="descricaoFalhaFotosText"/>
+			</mx:HBox>
+			<mx:HBox width="100%">
+				<mx:Label text="Conclusão:" height="25" width="128"/>
+				<mx:TextArea height="51" width="294" id="conclusaoFotosText"/>
+			</mx:HBox>
+			<mx:Button label="Imprimir" click="button1_clickHandler(event)"/>
+		</mx:VBox>
+		<!--mx:DataGrid id="gridFotos" height="100%" width="100%">
+		<mx:columns>
+		<mx:DataGridColumn dataField="" id="anexo" headerText="Arquivos" textAlign="left" sortable="false"/>
+		<mx:DataGridColumn headerText="Ação" textAlign="center" width="100" sortable="false">
+		<mx:itemRenderer> 
+		<mx:Component>
+		<mx:HBox verticalGap="2" horizontalAlign="center">
+		<mx:Image source="img/remover.png" width="15" height="15" click="{dispatchEvent(new Event('REMOVERARQUIVO', true))}" toolTip="Remover Arquivo"/>
+		<mx:Image source="img/download.png" click="{dispatchEvent(new Event('VISUALIZARARQUIVO', true))}" toolTip="Visualizar Anexo"/>
+		</mx:HBox>
+		</mx:Component> 
+		</mx:itemRenderer>
+		</mx:DataGridColumn>		
+		
+		</mx:columns>
+		</mx:DataGrid-->
+	</mx:Canvas>
+</ModuleTitleWindow>

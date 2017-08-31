@@ -1,0 +1,770 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init()" layout="absolute" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.FilialBean;
+			
+			import componente.AprovarCriacaoOSCustomizacao;
+			
+			import bean.SistemaBean;
+			import bean.UsuarioBean;
+			
+			import componente.AlterPassword;
+			import componente.AlterarStatusOs;
+			import componente.AprovarCriacaoOSConcessaoRental;
+			import componente.AprovarCriacaoOSGarantia;
+			import componente.AprovarCriacaoOSGerador;
+			import componente.AprovarCriacaoOSRental;
+			import componente.AssociarServicoTerceiro;
+			import componente.CadastroFornecedorServTerceiro;
+			import componente.CadastroSegmento;
+			import componente.Checkin;
+			import componente.CheckinSupervisorFilial;
+			import componente.ClienteInter;
+			import componente.ClonarPrecificacao;
+			import componente.Complexidade;
+			import componente.ConclusaodeServicoFornecedor;
+			import componente.ConsultorCheckin;
+			import componente.DigitadorCheckin;
+			import componente.Familia;
+			import componente.Fator;
+			import componente.FatorReajuste;
+			import componente.GarantiaCheckin;
+			import componente.GestorAprovacaoInterCheckin;
+			import componente.GestorOS;
+			import componente.HistoricoDeSitucaoServTerceiros;
+			import componente.HistoricoDeSitucaoServTerceirosAdministrador;
+			import componente.IndicadoresOrcamentistaDetalhes;
+			import componente.IndicadoresOrcamentistaTotal;
+			import componente.ItemServTerc;
+			import componente.LegendaProcessoOficina;
+			import componente.LogPecas;
+			import componente.LogSegmentos;
+			import componente.MetrologiaServTerceiros;
+			import componente.NotaFiscalServTerceiros;
+			import componente.Orcamento;
+			import componente.Precificacao;
+			import componente.Prefixo;
+			import componente.ReceberEquipamento;
+			import componente.RecepcaoServTerceiros;
+			import componente.RelatorioFluxoOS;
+			import componente.RentalCheckin;
+			import componente.RentalGarantiaCheckin;
+			import componente.RentalGarantiaUsadasCheckin;
+			import componente.SincronizarCPTCD;
+			import componente.SincronizarJBCD;
+			import componente.SolicitarCriacaoOS;
+			import componente.SupervisorCheckin;
+			import componente.TipoFrete;
+			import componente.TipoServico;
+			import componente.TreeInspecao;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.MenuEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			private var urlApropriacaoHoras:String;
+			private var _usuarioBean:UsuarioBean;
+			[Bindable]
+			public var menuBarCollection:XMLListCollection;
+			
+			private function init():void{
+				serviceController.getUrlLogintServer();
+				serviceController.verificarLogin();
+				serviceController.getUrlReportApropriacaoHoras();
+				serviceController.findAllFilial();
+			} 
+			
+			private function onResultVerificarLogin(event:ResultEvent):void{
+				if(event.result != null){
+					_usuarioBean = UsuarioBean(event.result);
+					usuarioLogadoText.text = _usuarioBean.nome;
+					if(_usuarioBean.isAdm){
+						filialCbx.visible = true;
+					}
+					for(var i:int = 0; i < _usuarioBean.sistemaList.length; i++){
+						var sis:SistemaBean = SistemaBean(_usuarioBean.sistemaList.getItemAt(i));
+						if(sis.sigla == 'GE'){
+							_usuarioBean.siglaPerfil = sis.perfilBean.sigla;
+							if(sis.perfilBean.sigla == 'ADM'){
+								menuBarCollection = new XMLListCollection(menubarXML);
+							} else	if(sis.perfilBean.sigla == 'SUPER'){
+								menuBarCollection = new XMLListCollection(menuSupervisorbarXML);
+							}else	if(sis.perfilBean.sigla == 'ADMT'){
+								menuBarCollection = new XMLListCollection(menuAdministrativobarXML);
+							}else	if(sis.perfilBean.sigla == 'CONSULT'){
+								menuBarCollection = new XMLListCollection(menuConsultorbarXML);
+							}else if(sis.perfilBean.sigla == 'GAOS'){ // TODO: Alterar para GAOS ao terminar rotina do GestorOS 
+								menuBarCollection = new XMLListCollection(menuGestorAprovacaoXML);
+							}else if(sis.perfilBean.sigla == 'ES'){ // TODO: Alterar para ES(Engeneheiro de Serviços) ao terminar rotina do GestorOS 
+								menuBarCollection = new XMLListCollection(menuGestorAprovacaoInterXML);
+							}else if(sis.perfilBean.sigla == 'RECP'){ // Recepção
+								menuBarCollection = new XMLListCollection(menuRecepcaoXML); 
+							}else if(sis.perfilBean.sigla == 'DIG'){ // Digitador
+								menuBarCollection = new XMLListCollection(menuDigitadorXML); 
+							}else if(sis.perfilBean.sigla == 'CONS'){ // Consultor
+								menuBarCollection = new XMLListCollection(menuConsultorXML);
+							}else if(sis.perfilBean.sigla == 'ORC'){ // Consultor
+								menuBarCollection = new XMLListCollection(menuOrcamentistaXML);
+							}else if(sis.perfilBean.sigla == 'GERENT'){
+								menuBarCollection = new XMLListCollection(menuGestorRentalXML);
+							}else if(sis.perfilBean.sigla == 'GEGAR'){
+								menuBarCollection = new XMLListCollection(menuGestorGarantiaXML);
+							}else if(sis.perfilBean.sigla == 'MTR'){
+								menuBarCollection = new XMLListCollection(menuMetrologiaXML);
+							}else if(sis.perfilBean.sigla == 'FORN'){
+								menuBarCollection = new XMLListCollection(menuFornecdorXML);
+							}else if(sis.perfilBean.sigla == 'ENF'){
+								menuBarCollection = new XMLListCollection(menuNFXML);
+							}else if(sis.perfilBean.sigla == 'SUPERF'){
+								menuBarCollection = new XMLListCollection(menuSuperFilial);
+							}else if(sis.perfilBean.sigla == 'ORCA'){
+								menuBarCollection = new XMLListCollection(menuOrcamentistaAdministradrXML);
+							}else if(sis.perfilBean.sigla == 'APRINT'){
+								menuBarCollection = new XMLListCollection(menuAprovadorInter);
+							}else if(sis.perfilBean.sigla == 'APRRENT'){
+								menuBarCollection = new XMLListCollection(menuAprovadorRental);
+							}else if(sis.perfilBean.sigla == 'APRGAR'){
+								menuBarCollection = new XMLListCollection(menuAprovadorGarantia);
+							}else if(sis.perfilBean.sigla == 'APRGER'){
+								menuBarCollection = new XMLListCollection(menuAprovadorGerador);
+							}else if(sis.perfilBean.sigla == 'APGARU'){
+								menuBarCollection = new XMLListCollection(menuAprovadorGarantiaUsados);
+							}else if(sis.perfilBean.sigla == 'GEGARUSA'){
+								menuBarCollection = new XMLListCollection(menuGestorGarantiaUsadasXML);
+							}else if(sis.perfilBean.sigla == 'APRCUST'){
+								menuBarCollection = new XMLListCollection(menuAprovadorCustomizacao);
+							}
+							
+							
+							
+						}
+					}
+					if(_usuarioBean.siglaPerfil == 'RECP' && _usuarioBean.filial == '00'){
+						filialCbx.visible = true;
+					}
+				}
+			}
+			
+			private function onResultGetUrlLogintServer(event:ResultEvent):void{
+				urlLogin = String(event.result);
+			}
+			
+
+			private var menubarXML:XMLList =
+				<>
+					<menuitem label="Administração">
+						<menuitem label="Check-in Equipamento" data="CHE"/>
+						<menuitem label="Precificação Equipamento" data="PRE"/>
+						<menuitem label="Cadastrar árvore de inspeção" data="ARV"/>						
+						<menuitem label="Cadastrar Cliente Interno" data="CLIINTER"/>						
+						<menuitem label="Cadastrar Item Serviço Terceiros" data="ITEM"/>						
+						<menuitem label="Cadastrar Prefixo" data="PREFIXO"/>
+						<menuitem label="Cadastrar Fator" data="FAT"/>
+						<menuitem label="Cadastrar Fator Reajuste" data="FAT_REA"/>
+						<menuitem label="Cadastrar Fornecedores " data="CAD_FORN"/>
+						<menuitem label="Associar Servicos a Fornecedores " data="ASS_SERV"/>
+						<menuitem label="Clonar Precificação Parcial" data="CLO_PRE"/>
+						<menuitem label="Cadastrar Complexidade" data="COM"/>
+						<menuitem label="Cadastrar Segmento" data="SEG"/>
+						<menuitem label="Cadastrar Família" data="FAM"/>
+						<menuitem label="Cadastrar Tipo de Serviço de Terceiros" data="TST"/>
+						<menuitem label="Cadastrar Tipo de Frete" data ="FRE"/>
+						<menuitem label="Log de Peças" data ="LP"/>
+						<menuitem label="Log de Segmentos" data ="LS"/>
+						<menuitem label="Orçamento" data="ORC"/>
+						<menuitem label="Sincronizar Job Code" data="SJBCD"/>
+						<menuitem label="Sincronizar Comp Code" data="SCPTCD"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Programação dos Serviços de Oficina" data="PFO"/>
+						<menuitem label="Situação Serviços de Terceiros Geral" data="SSTG"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+						<menuitem label="Voltar Status de OS" data="VST_OS"/>
+			
+				</menuitem>
+					<menuitem label="Relatorios">
+						<menuitem label="Relatorio de Fluxo da OS" data="REL_FLUXO"/>
+						<menuitem label="Relatório de Indicadores de Orçamentista" data="REL_IND_ORC"/>
+						<menuitem label="Relatório de Indicadores de Orçamentista Detalhes" data="REL_IND_ORC_DET"/>
+				</menuitem>
+					
+				</>
+			private var menuSupervisorbarXML:XMLList =
+				<>
+				<menuitem label="Encarregado">
+						<menuitem label="Check-in Encarregado" data="CHE_SUPER"/>
+						<menuitem label="Log de Peças" data ="LP"/>
+						<menuitem label="Precificação Equipamento" data="PRE"/>
+						<menuitem label="Orçamento" data="ORC"/>
+						<menuitem label="Programação dos Serviços de Oficina" data="PFO"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuAdministrativobarXML:XMLList =
+				<>
+				<menuitem label="Administração">
+						<menuitem label="Check-in Equipamento" data="CHE"/>
+						<menuitem label="Orçamento" data="ORC"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuConsultorbarXML:XMLList =
+				<>
+				<menuitem label="Administração">
+						<menuitem label="Orçamento" data="ORC"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuGestorAprovacaoXML:XMLList =
+				<>
+				<menuitem label="Gestão OS">
+						<menuitem label="Gestor de Aprovação" data="GOS"/>
+						<menuitem label="Check-in Equipamento" data="CHE"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Programação dos Serviços de Oficina" data="PFO"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+				
+				
+			private var menuAprovadorGarantia:XMLList =
+				<>
+				<menuitem label="Gestão OS">
+						<menuitem label="Aprovar criação de OS de Garantia" data="CRI_OS_GAR"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>	
+			
+			private var menuAprovadorGarantiaUsados:XMLList =
+				<>
+				<menuitem label="Gestão OS">
+						<menuitem label="Aprovar criação de OS de Garantia" data="CRI_OS_GAR"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>	
+				
+			private var menuAprovadorGerador:XMLList =
+				<>
+				<menuitem label="Gestão OS">
+						<menuitem label="Aprovar criação de OS de Gerador" data="CRI_OS_GER"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>		
+			private var menuGestorAprovacaoInterXML:XMLList =
+				<>
+				<menuitem label="Gestão OS">
+						<menuitem label="Gestor de Aprovação " data="ES"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuGestorRentalXML:XMLList =
+				<>
+				<menuitem label="Gestão Rental">
+						<menuitem label="Gestor de Rental " data="GERENT"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuGestorGarantiaXML:XMLList =
+				<>
+				<menuitem label="Gestão Garantia">
+						<menuitem label="Gestor de Garantia " data="GEGAR"/>
+						<menuitem label="Data Faturamento de Garantia" data="GARRENT"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+				
+			private var menuGestorGarantiaUsadasXML:XMLList =
+				<>
+				<menuitem label="Gestão Garantia">
+						<menuitem label="Data Faturamento de Garantia de Usadas" data="GARUSADA"/>
+				</menuitem>
+					
+				</>
+				
+				
+				//Menu específico para o funcionário da recepção.
+			private var menuRecepcaoXML:XMLList = 
+				<>
+				<menuitem label="Recepção">
+						<menuitem label="Check-in" data="CHE_REC"/>
+						<menuitem label="Cadastrar árvore de inspeção" data="ARV"/>	
+						<menuitem label="Cadastrar Prefixo" data="PREFIXO"/>
+						<menuitem label="Clonar Precificação Parcial" data="CLO_PRE"/>
+						<menuitem label="Precificação Equipamento" data="PRE"/>
+						<menuitem label="Orçamento" data="ORC"/>
+						<menuitem label="Gestão de Serviços de Terceiros" data="GST"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Aprovar criação de OS" data="SOL_CRI_OS"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+				</>
+				//Menu específico para o funcionário digitador.
+			private var menuDigitadorXML:XMLList = 
+				<>
+				<menuitem label="Digitador">
+						<menuitem label="Check-in" data="CHE_DIG"/>
+						<menuitem label="Log de Peças" data ="LP"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuConsultorXML:XMLList = 
+				<>
+				<menuitem label="Consultor">
+						<menuitem label="Check-in" data="CHE_CONS"/>
+						<menuitem label="Orçamento" data="ORC"/>
+						<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+						<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			private var menuOrcamentistaXML:XMLList = 
+				<>
+				<menuitem label="Orcamentista">
+					<menuitem label="Check-in Equipamento" data="CHE"/>
+					<menuitem label="Log de Peças" data ="LP"/>
+					<menuitem label="Orçamento" data="ORC"/>
+					<menuitem label="Precificação Equipamento" data="PRE"/>
+					<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+					<menuitem label="Situação Serviços de Terceiros Geral" data="SSTG"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+					<menuitem label="Relatorios">
+						<menuitem label="Relatório de Indicadores de Orçamentista Detalhes" data="REL_IND_ORC_DET"/>
+				</menuitem>
+					
+				</>
+			private var menuOrcamentistaAdministradrXML:XMLList = 
+				<>
+				<menuitem label="Orcamentista">
+					<menuitem label="Check-in Equipamento" data="CHE"/>
+					<menuitem label="Log de Peças" data ="LP"/>
+					<menuitem label="Orçamento" data="ORC"/>
+					<menuitem label="Precificação Equipamento" data="PRE"/>
+					<menuitem label="Programação dos Serviços de Oficina" data="PFO"/>
+					<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+					<menuitem label="Situação Serviços de Terceiros Geral" data="SSTG"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+				<menuitem label="Relatorios">
+						<menuitem label="Relatório de Indicadores de Orçamentista Detalhes" data="REL_IND_ORC_DET"/>
+				</menuitem>
+					
+				</>
+			private var menuMetrologiaXML:XMLList = 
+				<>
+				<menuitem label="Metrologia">
+					<menuitem label="Gestão Serviços de Terceiros" data="AST"/>
+					<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>	
+			private var menuFornecdorXML:XMLList = 
+				<>
+				<menuitem label="Fornecedor">
+					<menuitem label="Concluir Serviço" data="FORN_SERV"/>
+					<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+				</menuitem>
+					
+				</>	
+			private var menuNFXML:XMLList = 
+				<>
+				<menuitem label="Nota Fiscal">
+					<menuitem label="Incluir NF" data="INF"/>
+					<menuitem label="Situação Serviços de Terceiros" data="SST"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>	
+			private var menuSuperFilial:XMLList = 
+				<>
+				<menuitem label="Supervisor Filial">
+					<menuitem label="Checkin" data="SUPERF"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>	
+			private var menuAprovadorInter:XMLList = 
+				<>
+				<menuitem label="Aprovar Criação de OS">
+					<menuitem label="Solicitação de criação de OS Interna" data="CRI_OS_CON_RENT"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+			
+			private var menuAprovadorRental:XMLList = 
+				<>
+				<menuitem label="Aprovar Criação de OS">
+					<menuitem label="Solicitação de criação de OS de Rental" data="APR_RENTAL"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>
+				
+				
+			private var menuAprovadorCustomizacao:XMLList = 
+				<>
+				<menuitem label="Aprovar Criação de OS de Customização">
+					<menuitem label="Solicitação de criação de OS Interna" data="CRI_OS_CUSTOMIZACAO"/>
+					<menuitem label="Solicitar criação de OS" data="SOL_CRI_OS"/>
+				</menuitem>
+					
+				</>	
+			
+			//<menuitem label="Cadastrar Modelo" data="MOD"/>
+			private function itemClickHandler(event:MenuEvent):void {
+				var opcao:String = event.item.@data;	
+				///this.setStyle("backgroundImage",fundoBranco);
+				gestaoEquipamentosCanvas.removeAllChildren();
+				if(opcao == "CHE"){
+					var che:Checkin = new Checkin();
+					gestaoEquipamentosCanvas.addChild(che);
+					che.init(urlLogin, _usuarioBean);
+				}else if(opcao == "CHE_SUPER"){ 
+					var cheSuper:SupervisorCheckin = new SupervisorCheckin();
+					gestaoEquipamentosCanvas.addChild(cheSuper);
+					cheSuper.init(urlLogin, _usuarioBean);					
+				}else if(opcao == "CHE_REC"){
+					var cheRec:ReceberEquipamento = new ReceberEquipamento();
+					gestaoEquipamentosCanvas.addChild(cheRec);
+					cheRec.init(urlLogin, _usuarioBean);	
+				}else if(opcao == "CHE_DIG"){
+					var cheDig:DigitadorCheckin = new DigitadorCheckin();
+					gestaoEquipamentosCanvas.addChild(cheDig);
+					cheDig.init(urlLogin, _usuarioBean);	
+				}else if(opcao == "CHE_CONS"){
+					var consDig:ConsultorCheckin = new ConsultorCheckin();
+					gestaoEquipamentosCanvas.addChild(consDig);
+					consDig.init(urlLogin, _usuarioBean);	
+				}else if(opcao == "PRE"){ 
+					var pre:Precificacao = new Precificacao();
+					gestaoEquipamentosCanvas.addChild(pre);
+					pre.init(urlLogin, _usuarioBean);
+				}else if (opcao == "ARV"){
+					var tree:TreeInspecao = new TreeInspecao();
+					gestaoEquipamentosCanvas.addChild(tree);
+					tree.init(urlLogin);						
+				}else if (opcao == "FAT"){
+					var fator:Fator = new Fator();
+					gestaoEquipamentosCanvas.addChild(fator);
+					fator.init(urlLogin);					
+				}else if (opcao == "PREFIXO"){
+					var pref:Prefixo = new Prefixo();
+					gestaoEquipamentosCanvas.addChild(pref);
+					pref.init(urlLogin);					
+				}else if (opcao == "COM"){
+					var com:Complexidade = new Complexidade();
+					gestaoEquipamentosCanvas.addChild(com);
+					com.init (urlLogin);				
+				}else if (opcao == "SEG"){
+					var seg:CadastroSegmento = new CadastroSegmento();
+					gestaoEquipamentosCanvas.addChild(seg);
+					seg.init (urlLogin);				
+				}else if (opcao == "ORC"){
+					var orc:Orcamento = new Orcamento();
+					gestaoEquipamentosCanvas.addChild(orc);
+					orc.init(urlLogin);
+				}else if (opcao == "FAM"){
+					var fam:Familia = new Familia();
+					gestaoEquipamentosCanvas.addChild(fam);
+					fam.init(urlLogin);
+				}else if (opcao == "FAT_REA"){
+					var fatR:FatorReajuste = new FatorReajuste();
+					gestaoEquipamentosCanvas.addChild(fatR);
+					fatR.init(urlLogin);
+				}else if (opcao == "TST"){
+					var TST:TipoServico = new TipoServico();
+					gestaoEquipamentosCanvas.addChild(TST);
+					TST.init(urlLogin);
+				}else if (opcao == "GOS" ){
+					var GOS:GestorAprovacaoInterCheckin = new GestorAprovacaoInterCheckin();
+					gestaoEquipamentosCanvas.addChild(GOS);
+					GOS.init(urlLogin,  _usuarioBean);
+				}else if (opcao == "FRE" ){
+					var FRE:TipoFrete = new TipoFrete();
+					gestaoEquipamentosCanvas.addChild(FRE);
+					FRE.init(urlLogin);
+				}
+				else if (opcao == "ES"){
+					var ES:GestorOS = new GestorOS();
+					gestaoEquipamentosCanvas.addChild(ES);
+					ES.init(urlLogin,  'ES');
+				}
+				else if (opcao == "CLIINTER"){
+					var CLIINTER:ClienteInter = new ClienteInter();
+					gestaoEquipamentosCanvas.addChild(CLIINTER);
+					CLIINTER.init(urlLogin);
+				}
+				else if (opcao == "GERENT"){
+					var rental:RentalCheckin = new RentalCheckin();
+					gestaoEquipamentosCanvas.addChild(rental);
+					rental.init(urlLogin, _usuarioBean);
+				}
+				else if (opcao == "GARRENT"){
+					var rentalGar:RentalGarantiaCheckin = new RentalGarantiaCheckin();
+					gestaoEquipamentosCanvas.addChild(rentalGar);
+					rentalGar.init(urlLogin, _usuarioBean);
+				}
+				else if (opcao == "GARUSADA"){
+					var rentalGarUsadas:RentalGarantiaUsadasCheckin = new RentalGarantiaUsadasCheckin();
+					gestaoEquipamentosCanvas.addChild(rentalGarUsadas);
+					rentalGarUsadas.init(urlLogin, _usuarioBean);
+				}
+				else if (opcao == "GEGAR"){
+					var garantia:GarantiaCheckin = new GarantiaCheckin();
+					gestaoEquipamentosCanvas.addChild(garantia);
+					garantia.init(urlLogin, _usuarioBean);
+				}else if (opcao == "SJBCD"){
+					var sincJBCD:SincronizarJBCD = new SincronizarJBCD();
+					gestaoEquipamentosCanvas.addChild(sincJBCD);
+					sincJBCD.init(urlLogin);					
+				}else if (opcao == "SCPTCD"){
+					var sincCPTCD:SincronizarCPTCD = new SincronizarCPTCD();
+					gestaoEquipamentosCanvas.addChild(sincCPTCD);
+					sincCPTCD.init(urlLogin);
+				}else if (opcao == "CLO_PRE"){
+					var clonarpre:ClonarPrecificacao = new ClonarPrecificacao();
+					gestaoEquipamentosCanvas.addChild(clonarpre);
+					clonarpre.init(urlLogin,_usuarioBean);
+				}else if (opcao == "REL_FLUXO"){
+					var relatorioFluxo:RelatorioFluxoOS = new RelatorioFluxoOS();
+					gestaoEquipamentosCanvas.addChild(relatorioFluxo);
+					relatorioFluxo.init(urlLogin,_usuarioBean);
+				}else if (opcao == "CAD_FORN"){
+					var cadForn:CadastroFornecedorServTerceiro = new CadastroFornecedorServTerceiro();
+					gestaoEquipamentosCanvas.addChild(cadForn);
+					cadForn.init(urlLogin);
+				}else if (opcao == "AST"){
+					var cadMST:MetrologiaServTerceiros = new MetrologiaServTerceiros();
+					gestaoEquipamentosCanvas.addChild(cadMST);
+					cadMST.init(urlLogin);
+				}else if (opcao == "SST"){
+					var cadHST:HistoricoDeSitucaoServTerceiros = new HistoricoDeSitucaoServTerceiros();
+					gestaoEquipamentosCanvas.addChild(cadHST);
+					cadHST.init(urlLogin);
+				}else if (opcao == "ASS_SERV"){
+					var assServ:AssociarServicoTerceiro = new AssociarServicoTerceiro();
+					gestaoEquipamentosCanvas.addChild(assServ);
+					assServ.init(urlLogin,_usuarioBean);
+				}else if (opcao == "FORN_SERV"){
+					var fornServ:ConclusaodeServicoFornecedor = new ConclusaodeServicoFornecedor();
+					gestaoEquipamentosCanvas.addChild(fornServ);
+					fornServ.init(urlLogin,_usuarioBean);
+				}else if (opcao == "GST"){
+					var recServYerc:RecepcaoServTerceiros = new RecepcaoServTerceiros();
+					gestaoEquipamentosCanvas.addChild(recServYerc);
+					recServYerc.init(urlLogin);
+				}else if (opcao == "INF"){
+					var inf:NotaFiscalServTerceiros = new NotaFiscalServTerceiros();
+					gestaoEquipamentosCanvas.addChild(inf);
+					inf.init(urlLogin, urlReport);
+				}else if (opcao == "ITEM"){
+					var item:ItemServTerc = new ItemServTerc();
+					gestaoEquipamentosCanvas.addChild(item);
+					item.init(urlLogin);
+			    }else if (opcao == "SUPERF"){
+				    var superf:CheckinSupervisorFilial = new CheckinSupervisorFilial ();
+				    gestaoEquipamentosCanvas.addChild(superf);
+				    superf.init(urlLogin, _usuarioBean);
+			    }else if (opcao == "LP"){
+				    var logPecas:LogPecas = new LogPecas ();
+				    gestaoEquipamentosCanvas.addChild(logPecas);
+					logPecas.init(urlLogin, _usuarioBean);
+			    }else if (opcao == "LS"){
+				    var logSegmentos:LogSegmentos = new LogSegmentos ();
+				    gestaoEquipamentosCanvas.addChild(logSegmentos);
+					logSegmentos.init(urlLogin, _usuarioBean);
+			    }else if (opcao == "PFO"){
+				    var lp:LegendaProcessoOficina = new LegendaProcessoOficina ();
+				    gestaoEquipamentosCanvas.addChild(lp);
+					lp.init(urlLogin, this._usuarioBean);
+			    }else if (opcao == "SSTG"){
+					var cadHSTG:HistoricoDeSitucaoServTerceirosAdministrador = new HistoricoDeSitucaoServTerceirosAdministrador();
+					gestaoEquipamentosCanvas.addChild(cadHSTG);
+					cadHSTG.init(urlLogin);
+			    }else if (opcao == "REL_IND_ORC"){
+					var indTotal:IndicadoresOrcamentistaTotal = new IndicadoresOrcamentistaTotal();
+					gestaoEquipamentosCanvas.addChild(indTotal);
+					indTotal.init(urlLogin);
+			    }else if (opcao == "REL_IND_ORC_DET"){
+					var indDetalhe:IndicadoresOrcamentistaDetalhes = new IndicadoresOrcamentistaDetalhes();
+					gestaoEquipamentosCanvas.addChild(indDetalhe);
+					indDetalhe.init(urlLogin);
+			    }else if (opcao == "VST_OS"){
+					var altSOS:AlterarStatusOs = new AlterarStatusOs();
+					gestaoEquipamentosCanvas.addChild(altSOS);
+					altSOS.init(urlLogin);
+				}else if (opcao == "SOL_CRI_OS"){
+					var solCriOS:SolicitarCriacaoOS = new SolicitarCriacaoOS();
+					gestaoEquipamentosCanvas.addChild(solCriOS);
+					solCriOS.init(urlLogin, this._usuarioBean);
+				}else if (opcao == "CRI_OS_GAR"){
+					var solCriOSGar:AprovarCriacaoOSGarantia = new AprovarCriacaoOSGarantia();
+					gestaoEquipamentosCanvas.addChild(solCriOSGar);
+					solCriOSGar.init(urlLogin, this._usuarioBean);
+				}else if (opcao == "CRI_OS_CON_RENT"){
+					var solCriOSConRen:AprovarCriacaoOSConcessaoRental = new AprovarCriacaoOSConcessaoRental();
+					gestaoEquipamentosCanvas.addChild(solCriOSConRen);
+					solCriOSConRen.init(urlLogin, this._usuarioBean);
+				}else if (opcao == "APR_RENTAL"){
+					var solCriOSRen:AprovarCriacaoOSRental = new AprovarCriacaoOSRental();
+					gestaoEquipamentosCanvas.addChild(solCriOSRen);
+					solCriOSRen.init(urlLogin, this._usuarioBean);
+				}else if (opcao == "CRI_OS_GER"){
+					var solCriOSGer:AprovarCriacaoOSGerador = new AprovarCriacaoOSGerador();
+					gestaoEquipamentosCanvas.addChild(solCriOSGer);
+					solCriOSGer.init(urlLogin, this._usuarioBean);
+				}else if (opcao == "CRI_OS_CUSTOMIZACAO"){
+					var solCriOSCustomizacao:AprovarCriacaoOSCustomizacao = new AprovarCriacaoOSCustomizacao();
+					gestaoEquipamentosCanvas.addChild(solCriOSCustomizacao);
+					solCriOSCustomizacao.init(urlLogin, this._usuarioBean);
+				}
+				
+				
+				
+			}
+			
+			public function invalidarSessao(tipo:String):void
+			{	
+				if(tipo == 'SAIR'){
+					serviceController.invalidarSessao();
+					var uv:URLVariables = new URLVariables();
+					var url:URLRequest = new URLRequest(urlLogin);
+					url.method = "POST";
+					navigateToURL(url,"_self");
+				}else{
+					var uv:URLVariables = new URLVariables();
+					uv.matricula = _usuarioBean.login;
+					uv.senha = _usuarioBean.senha;
+					var url:URLRequest = new URLRequest(urlLogin+"/LoginUsuario");
+					url.method = "POST";
+					url.data = uv;
+					navigateToURL(url,"_self");
+					serviceController.invalidarSessao();
+					
+				}
+			}
+			
+			protected function goApropriacaoHoras(event:MouseEvent):void{
+				ProgressBarHelper.openProgressBar(this);
+				//controlPanelCanvas.removeAllChildren();
+				var sistema:SistemaBean = SistemaBean(event.currentTarget.data);
+				var uv:URLVariables = new URLVariables();
+				uv.matricula = _usuarioBean.login;
+				uv.senha = _usuarioBean.senha;
+				
+				var url:URLRequest = new URLRequest(urlApropriacaoHoras+"/LoginUsuario");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_self");
+				//serviceController.getUrlReportApropriacaoHoras();
+			}
+			
+//			private function onResultGetUrlReportApropriacaoHoras(event:ResultEvent):void{
+//				urlReport = String(event.result);
+//			}
+			private function onResultGetUrlReportApropriacaoHoras(event:ResultEvent):void{
+				urlApropriacaoHoras = String(event.result);
+			}
+			
+			public function popupAlterPassword():void{				
+				var alterPassword:AlterPassword = new AlterPassword();
+				alterPassword.addEventListener(CloseEvent.CLOSE, removePopUpAlterSenha);
+				PopUpManager.addPopUp(alterPassword,this,true);
+				PopUpManager.centerPopUp(alterPassword)
+				alterPassword.init(urlLogin);
+				alterPassword.percentWidth = 500;
+				alterPassword.percentHeight = 300;									
+			}
+			
+			private function removePopUpAlterSenha(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function onResultInvalidarSessao(event:ResultEvent):void{
+				_usuarioBean = new UsuarioBean();
+			}
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			
+			private function onResultFindAllFilial(event:ResultEvent):void{
+				filialCbx.dataProvider = ArrayCollection(event.result);
+				this.selectedFilialCbx();
+			} 
+			
+			private function selectedFilialCbx():void{
+				var filialList:ArrayCollection = ArrayCollection(filialCbx.dataProvider);
+				for(var i:int=0; i < filialList.length; i++){
+					var f:FilialBean = FilialBean(filialList.getItemAt(i));
+					if(Number(_usuarioBean.filial) == f.stno){
+						filialCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectNewFilial():void{
+				serviceController.changeUser(FilialBean(filialCbx.selectedItem).stno);
+				_usuarioBean.filial = String(FilialBean(filialCbx.selectedItem).stno);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Style source="gestaoEquipamentosCSS.css"/>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="getUrlLogintServer" result="onResultGetUrlLogintServer(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="invalidarSessao" result="onResultInvalidarSessao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificarLogin" result="onResultVerificarLogin(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="getUrlReportApropriacaoHoras" result="onResultGetUrlReportApropriacaoHoras(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="changeUser" result="ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFilial" result="onResultFindAllFilial(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0" width="100%" height="50">
+		<mx:Image width="140" source="img/Logo.png" height="43"/>
+		<mx:Label text="13.0"/>
+		<mx:HBox width="65%" horizontalAlign="right" verticalAlign="middle">
+			<mx:Label text="" id="usuarioLogadoText" height="32" paddingTop="10"/>
+			<mx:Image source="img/password.png" visible="false" buttonMode="true" id="alterSenha" toolTip="Alterar Senha" click="popupAlterPassword()" height="32" width="32"/>
+			<mx:Image source="img/menu.png" visible="true" buttonMode="true" id="menu" toolTip="Painel de Controle" click="invalidarSessao('MENU')" height="32" width="32"/>
+			<mx:Image source="img/logout.png" visible="true" buttonMode="true" id="logout" toolTip="Sair do Sistema" click="invalidarSessao('SAIR')" height="32" width="32"/>
+		</mx:HBox>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="58" width="100%">
+		<mx:MenuBar labelField="@label"  
+					dataProvider="{menuBarCollection}"
+					
+					itemClick="itemClickHandler(event);" 
+					x="10" y="58"/>
+		<!--mx:Image source="img/apropriacaoHoras.png" width="25" buttonMode="true" toolTip="Ir para Apropriação de horas" height="25" click="goApropriacaoHoras(event)"/-->
+		<mx:ComboBox editable="true" id="filialCbx" labelField="stnm" prompt="Selecione" change="selectNewFilial()" visible="false"></mx:ComboBox>
+	</mx:HBox>
+	<mx:Canvas width="100%" height="100%"   resizeEffect="resizeEffect" id="gestaoEquipamentosCanvas" x="0" y="85">
+	</mx:Canvas>
+</mx:Application>
